@@ -54,7 +54,7 @@
                 <li onclick="app.showModule('dashboard')" data-module="dashboard" class="active"><i
                         class="fa-solid fa-chart-pie"></i> Dashboard</li>
                 <li onclick="app.showModule('users')" data-module="users"><i class="fa-solid fa-address-card"></i>
-                    Record List</li>
+                    Manpower List</li>
                 <li onclick="app.showModule('bill_of_materials')" data-module="bill_of_materials"><i
                         class="fa-solid fa-receipt"></i> Bill of Materials</li>
                 <li onclick="app.showModule('billing_progress')" data-module="billing_progress"><i
@@ -272,7 +272,11 @@
                                 <span id="pd-block-display" style="margin-right: 16px;"></span>
                                 <span id="pd-lot-display" style="margin-right: 16px;"></span>
                                 <span id="pd-foreman-display" style="margin-right: 16px;"></span>
-                                <span id="pd-foreman2-display"></span>
+                                <span id="pd-foreman2-display" style="margin-right: 16px;"></span>
+                                <span id="pd-work-desc-display" style="margin-right: 16px;"></span>
+                                <span id="pd-project-desc-display" style="margin-right: 16px;"></span>
+                                <span id="pd-total-amount-display" style="margin-right: 16px;"></span>
+                                <span id="pd-completion-display"></span>
                             </p>
                         </div>
                     </div>
@@ -527,32 +531,7 @@
                                 </div>
                             </div>
 
-                            <!-- Section 3: Optional Project/Material Links -->
-                            <div class="ms-section">
-                                <div class="ms-section-title"><i class="fa-solid fa-link"></i> Optional Project / Material Links</div>
-                                <div class="ms-field-grid">
-                                    <div class="ms-field-group ms-field-half">
-                                        <label class="ms-field-label">Project Site / NTP</label>
-                                        <select id="ms-project">
-                                            <option value="">-- Not Linked --</option>
-                                        </select>
-                                    </div>
-                                    <div class="ms-field-group ms-field-half">
-                                        <label class="ms-field-label">BOM Item</label>
-                                        <select id="ms-bom">
-                                            <option value="">-- Not Linked --</option>
-                                        </select>
-                                    </div>
-                                    <div class="ms-field-group ms-field-half">
-                                        <label class="ms-field-label">Inventory Item</label>
-                                        <select id="ms-inventory">
-                                            <option value="">-- Not Linked --</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Section 4: Status / Notes -->
+                            <!-- Section 3: Status / Notes -->
                             <div class="ms-section">
                                 <div class="ms-section-title"><i class="fa-solid fa-gear"></i> Status / Notes</div>
                                 <div class="ms-field-grid">
@@ -603,9 +582,6 @@
                                             <th class="ms-col-email">Email</th>
                                             <th class="ms-col-category">Material Category</th>
                                             <th class="ms-col-materials">Supplied Materials</th>
-                                            <th class="ms-col-project">Project/Site</th>
-                                            <th class="ms-col-bom">BOM Item</th>
-                                            <th class="ms-col-inv">Inventory Item</th>
                                             <th class="ms-col-quote">Price Quote</th>
                                             <th class="ms-col-terms">Payment Terms</th>
                                             <th class="ms-col-status">Status</th>
@@ -726,11 +702,18 @@
                                 </div>
                                 <div class="man-field-group">
                                     <label class="man-field-label" for="man-project">
-                                        Project / Site
+                                        Project Site / NTP
                                     </label>
                                     <select id="man-project">
-                                        <option value="">Select Project (Optional)</option>
+                                        <option value="">Select Existing Project Site / NTP (Optional)</option>
                                     </select>
+                                </div>
+                                <div class="man-field-group">
+                                    <label class="man-field-label" for="man-project-text">
+                                        Or Type Project Site Manually
+                                    </label>
+                                    <input type="text" id="man-project-text" placeholder="Type project/site name if not yet created">
+                                    <small style="display:block; color:var(--text-muted); font-size:0.7rem; margin-top:2px;">Use manual input only if the project is not yet created.</small>
                                 </div>
                                 <div class="man-field-group">
                                     <label class="man-field-label" for="man-foreman">
@@ -851,7 +834,7 @@
                 <div class="card">
                     <div class="card-header">
                         <h3><i class="fa-solid fa-receipt"></i> Bill of Materials (BOM)</h3>
-                        <p>Record materials required for each project site or award cost.</p>
+                        <p>Record planned/required materials for each project site.</p>
                     </div>
 
                     <input type="hidden" id="bom-id" value="">
@@ -874,11 +857,17 @@
                                 </div>
                                 <div class="bom-field-group">
                                     <label class="bom-field-label" for="bom-award-cost">
-                                        Award Cost (Optional)
+                                        Award Cost Reference (Optional)
                                     </label>
                                     <select id="bom-award-cost">
-                                        <option value="">No Award Cost reference</option>
+                                        <option value="">Select Award Cost (Optional)</option>
                                     </select>
+                                </div>
+                                <div class="bom-field-group">
+                                    <label class="bom-field-label" for="bom-award-cost-text">
+                                        Or enter manually
+                                    </label>
+                                    <input type="text" id="bom-award-cost-text" placeholder="Type Award Cost if not listed">
                                 </div>
                             </div>
                         </div>
@@ -971,7 +960,7 @@
                         <div style="position: relative; width: min(300px, 100%);">
                             <i class="fa-solid fa-magnifying-glass"
                                 style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
-                            <input type="text" id="search-bom" placeholder="Search by material, project, code..."
+                            <input type="text" id="search-bom" placeholder="Search by material, project, award cost..."
                                 style="width: 100%; padding-left: 34px; border-radius: 6px; border: 1px solid var(--border); height: 34px; font-size: 13px;">
                         </div>
                     </div>
@@ -980,7 +969,7 @@
                             <thead>
                                 <tr>
                                     <th class="bom-col-project">Project / Site</th>
-                                    <th class="bom-col-code">Service Agreement</th>
+                                    <th class="bom-col-code">Award Cost Ref</th>
                                     <th class="bom-col-material">Material Name</th>
                                     <th class="bom-col-qty">Qty</th>
                                     <th class="bom-col-unit">Unit</th>
@@ -1028,7 +1017,7 @@
                                         Award Cost / Service Agreement (Optional)
                                     </label>
                                     <select id="bp-award-cost">
-                                        <option value="">No Award Cost reference</option>
+                                        <option value="">No Award Cost / Service Agreement</option>
                                     </select>
                                 </div>
                             </div>
@@ -1165,7 +1154,7 @@
                         <div style="position: relative; width: min(300px, 100%);">
                             <i class="fa-solid fa-magnifying-glass"
                                 style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
-                            <input type="text" id="search-billing" placeholder="Search by project, code, description..."
+                            <input type="text" id="search-billing" placeholder="Search by project, reference, description..."
                                 style="width: 100%; padding-left: 34px; border-radius: 6px; border: 1px solid var(--border); height: 34px; font-size: 13px;">
                         </div>
                     </div>
@@ -1175,7 +1164,7 @@
                                 <tr>
                                     <th class="bp-col-date">Date</th>
                                     <th class="bp-col-project">Project / Site</th>
-                                    <th class="bp-col-code">Service Agreement</th>
+                                    <th class="bp-col-code">Service Agreement / Award Cost</th>
                                     <th class="bp-col-ref">Reference No.</th>
                                     <th class="bp-col-desc">Description</th>
                                     <th class="bp-col-amount">Amount Billed</th>
@@ -1386,10 +1375,10 @@
                             </div>
                         </div>
 
-                        <!-- SECTION: Payroll Computation -->
+                        <!-- SECTION: Pay Period & Amount -->
                         <div class="pe-section">
                             <div class="pe-section-title">
-                                <i class="fa-solid fa-calculator"></i> Payroll Computation
+                                <i class="fa-solid fa-calendar"></i> Pay Period & Amount
                             </div>
                             <div class="pe-field-grid">
                                 <div class="pe-field-group">
@@ -1404,54 +1393,11 @@
                                     </label>
                                     <input type="date" id="pe-period-end" required>
                                 </div>
-                                <div class="pe-field-group">
-                                    <label class="pe-field-label" for="pe-daily-rate">
-                                        Daily Rate (₱)
-                                    </label>
-                                    <input type="text" id="pe-daily-rate" placeholder="0.00"
-                                        oninput="app.computePayrollEntryNet()">
-                                </div>
-                                <div class="pe-field-group">
-                                    <label class="pe-field-label" for="pe-days-worked">
-                                        Days Worked
-                                    </label>
-                                    <input type="text" id="pe-days-worked" placeholder="0"
-                                        oninput="app.computePayrollEntryNet()">
-                                </div>
-                                <div class="pe-field-group">
-                                    <label class="pe-field-label" for="pe-ot-hours">
-                                        Overtime Hours
-                                    </label>
-                                    <input type="text" id="pe-ot-hours" placeholder="0"
-                                        oninput="app.computePayrollEntryNet()">
-                                </div>
-                                <div class="pe-field-group">
-                                    <label class="pe-field-label" for="pe-ot-rate">
-                                        Overtime Rate (₱/hr)
-                                    </label>
-                                    <input type="text" id="pe-ot-rate" placeholder="0.00"
-                                        oninput="app.computePayrollEntryNet()">
-                                </div>
-                                <div class="pe-field-group">
-                                    <label class="pe-field-label" for="pe-gross-amount">
-                                        Gross Amount (₱)
-                                    </label>
-                                    <input type="text" id="pe-gross-amount" readonly
-                                        style="background:#F3F4F6; font-weight:700; color:var(--text-dark);">
-                                </div>
-                                <div class="pe-field-group">
-                                    <label class="pe-field-label" for="pe-deductions">
-                                        Deductions (₱)
-                                    </label>
-                                    <input type="text" id="pe-deductions" placeholder="0.00"
-                                        oninput="app.computePayrollEntryNet()">
-                                </div>
                                 <div class="pe-field-group pe-field-full">
-                                    <label class="pe-field-label" for="pe-net-amount">
-                                        Net Amount (₱)
+                                    <label class="pe-field-label" for="pe-amount">
+                                        Amount / Net Pay (₱) <span class="required">*</span>
                                     </label>
-                                    <input type="text" id="pe-net-amount" readonly
-                                        style="background:#F0FDF4; font-weight:800; color:var(--success); font-size:1rem;">
+                                    <input type="number" id="pe-amount" placeholder="0.00" min="0" step="0.01" style="font-weight:700;">
                                 </div>
                             </div>
                         </div>
@@ -1520,23 +1466,15 @@
                     <!-- Summary cards -->
                     <div class="pe-summary-grid" id="pe-summary-grid" style="margin-bottom:16px;">
                         <div class="pe-summary-card">
-                            <span class="pe-summary-label">Total Gross</span>
+                            <span class="pe-summary-label">Total Payroll</span>
                             <span class="pe-summary-value" id="pe-sum-gross">₱0.00</span>
                         </div>
                         <div class="pe-summary-card">
-                            <span class="pe-summary-label">Total Deductions</span>
-                            <span class="pe-summary-value" id="pe-sum-deductions">₱0.00</span>
-                        </div>
-                        <div class="pe-summary-card">
-                            <span class="pe-summary-label">Total Net</span>
-                            <span class="pe-summary-value" id="pe-sum-net">₱0.00</span>
-                        </div>
-                        <div class="pe-summary-card">
-                            <span class="pe-summary-label">Total Paid</span>
+                            <span class="pe-summary-label">Paid</span>
                             <span class="pe-summary-value" id="pe-sum-paid">₱0.00</span>
                         </div>
                         <div class="pe-summary-card">
-                            <span class="pe-summary-label">Total Pending</span>
+                            <span class="pe-summary-label">Pending</span>
                             <span class="pe-summary-value" id="pe-sum-pending">₱0.00</span>
                         </div>
                         <div class="pe-summary-card">
@@ -1558,9 +1496,7 @@
                                     <th class="pe-col-worker">Worker</th>
                                     <th class="pe-col-foreman">Foreman</th>
                                     <th class="pe-col-period">Period</th>
-                                    <th class="pe-col-amount">Gross</th>
-                                    <th class="pe-col-amount">Deductions</th>
-                                    <th class="pe-col-amount">Net</th>
+                                    <th class="pe-col-amount">Amount / Net Pay</th>
                                     <th class="pe-col-method">Payment</th>
                                     <th class="pe-col-status">Status</th>
                                     <th class="pe-col-remarks">Remarks</th>
@@ -1578,191 +1514,81 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <h3><i class="fa-solid fa-hand-holding-dollar"></i> Cash Release / Capital Monitoring</h3>
-                        <p>Monitor outgoing money per project. Manages capital/budget and tracks fund usage.</p>
+                        <h3><i class="fa-solid fa-hand-holding-dollar"></i> Cash Release</h3>
+                        <p>Record outgoing cash transactions.</p>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div class="cr-summary-row">
+                        <div class="cr-summary-card-sm">
+                            <span class="cr-summary-label">Total Materials</span>
+                            <span class="cr-summary-value" id="cr-total-materials">₱0.00</span>
+                        </div>
+                        <div class="cr-summary-card-sm">
+                            <span class="cr-summary-label">Total Labor</span>
+                            <span class="cr-summary-value" id="cr-total-labor">₱0.00</span>
+                        </div>
+                        <div class="cr-summary-card-sm">
+                            <span class="cr-summary-label">Other Expenses</span>
+                            <span class="cr-summary-value" id="cr-total-other">₱0.00</span>
+                        </div>
+                        <div class="cr-summary-card-sm cr-summary-grand">
+                            <span class="cr-summary-label">Grand Total</span>
+                            <span class="cr-summary-value" id="cr-grand-total">₱0.00</span>
+                        </div>
                     </div>
 
                     <input type="hidden" id="cr-id" value="">
 
-                    <div class="cr-form">
-
-                        <!-- SECTION: Project Release Reference -->
-                        <div class="cr-section">
-                            <div class="cr-section-title">
-                                <i class="fa-solid fa-city"></i> Project Release Reference
+                    <!-- Simple Log Form -->
+                    <div class="cr-simple-form">
+                        <div class="cr-simple-row">
+                            <div class="cr-simple-field">
+                                <label for="cr-date">Date</label>
+                                <input type="date" id="cr-date">
                             </div>
-                            <div class="cr-field-grid">
-                                <div class="cr-field-group cr-field-full">
-                                    <label class="cr-field-label" for="cr-project">
-                                        Project Site / NTP <span class="required">*</span>
-                                    </label>
-                                    <select id="cr-project" required>
-                                        <option value="">Select Project Site / NTP</option>
-                                    </select>
-                                </div>
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-award-cost">
-                                        Award Cost / Service Agreement (Optional)
-                                    </label>
-                                    <select id="cr-award-cost">
-                                        <option value="">No Award Cost reference</option>
-                                    </select>
-                                </div>
+                            <div class="cr-simple-field">
+                                <label for="cr-category">Category</label>
+                                <select id="cr-category">
+                                    <option value="">Select</option>
+                                    <option value="Materials">Material</option>
+                                    <option value="Labor">Labor</option>
+                                    <option value="Other Expenses">Other Expenses</option>
+                                </select>
                             </div>
-                        </div>
-
-                        <!-- SECTION: Release Entry -->
-                        <div class="cr-section">
-                            <div class="cr-section-title">
-                                <i class="fa-solid fa-file-invoice"></i> Release Entry
+                            <div class="cr-simple-field">
+                                <label for="cr-receiver">Receiver Name</label>
+                                <input type="text" id="cr-receiver" placeholder="Receiver name">
                             </div>
-                            <div class="cr-field-grid">
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-date">
-                                        Release Date <span class="required">*</span>
-                                    </label>
-                                    <input type="date" id="cr-date" required>
-                                </div>
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-ref-no">
-                                        Reference No.
-                                    </label>
-                                    <input type="text" id="cr-ref-no" placeholder="e.g. CR-2026-001">
-                                </div>
-                                <div class="cr-field-group cr-field-full">
-                                    <label class="cr-field-label" for="cr-description">
-                                        Release Description <span class="required">*</span>
-                                    </label>
-                                    <textarea id="cr-description" placeholder="Describe this cash release" style="min-height: 60px;" required></textarea>
-                                </div>
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-category">
-                                        Category
-                                    </label>
-                                    <select id="cr-category">
-                                        <option value="">Select Category</option>
-                                        <option value="Materials">Materials</option>
-                                        <option value="Labor">Labor</option>
-                                        <option value="Equipment">Equipment</option>
-                                        <option value="Transportation">Transportation</option>
-                                        <option value="Permit">Permit</option>
-                                        <option value="Miscellaneous">Miscellaneous</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-capital-amount">
-                                        Capital / Budget Amount (₱)
-                                    </label>
-                                    <input type="text" id="cr-capital-amount" placeholder="0.00"
-                                        oninput="app.formatCurrencyInput(this)">
-                                </div>
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-release-amount">
-                                        Release Amount (₱) <span class="required">*</span>
-                                    </label>
-                                    <input type="text" id="cr-release-amount" placeholder="0.00" required
-                                        oninput="app.formatCurrencyInput(this)">
-                                </div>
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-released-to">
-                                        Released To
-                                    </label>
-                                    <input type="text" id="cr-released-to" placeholder="Receiver name">
-                                </div>
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-payment-method">
-                                        Payment Method
-                                    </label>
-                                    <select id="cr-payment-method">
-                                        <option value="">Select method</option>
-                                        <option value="Cash">Cash</option>
-                                        <option value="Bank Transfer">Bank Transfer</option>
-                                        <option value="Check">Check</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-                                <div class="cr-field-group">
-                                    <label class="cr-field-label" for="cr-status">
-                                        Status <span class="required">*</span>
-                                    </label>
-                                    <select id="cr-status" required>
-                                        <option value="Released">Released</option>
-                                        <option value="Pending">Pending</option>
-                                        <option value="Cancelled">Cancelled</option>
-                                    </select>
-                                </div>
+                            <div class="cr-simple-field cr-simple-wide">
+                                <label for="cr-particulars">Particulars / Description</label>
+                                <input type="text" id="cr-particulars" placeholder="Describe the transaction">
+                            </div>
+                            <div class="cr-simple-field">
+                                <label for="cr-amount">Amount (₱)</label>
+                                <input type="number" id="cr-amount" placeholder="0.00" min="0.01" step="0.01">
+                            </div>
+                            <div class="cr-simple-field cr-simple-btn">
+                                <label>&nbsp;</label>
+                                <button type="button" class="btn-outline" id="cr-cancel-btn" style="display: none;" onclick="app.cancelEditCashRelease()">
+                                    <i class="fa-solid fa-xmark"></i> Cancel
+                                </button>
+                                <button type="button" class="btn" onclick="app.addCashRelease()">
+                                    <i class="fa-solid fa-plus"></i> <span id="cr-submit-text">Add Record</span>
+                                </button>
                             </div>
                         </div>
-
-                        <!-- SECTION: Capital Summary -->
-                        <div class="cr-section">
-                            <div class="cr-section-title">
-                                <i class="fa-solid fa-calculator"></i> Capital Summary
-                            </div>
-                            <div class="cr-summary-grid" id="cr-summary-grid">
-                                <div class="cr-summary-card">
-                                    <span class="cr-summary-label">Capital / Budget Amount</span>
-                                    <span class="cr-summary-value" id="cr-sum-capital">₱0.00</span>
-                                </div>
-                                <div class="cr-summary-card">
-                                    <span class="cr-summary-label">Total Cash Released</span>
-                                    <span class="cr-summary-value" id="cr-sum-released">₱0.00</span>
-                                </div>
-                                <div class="cr-summary-card">
-                                    <span class="cr-summary-label">Remaining Balance</span>
-                                    <span class="cr-summary-value" id="cr-sum-balance">₱0.00</span>
-                                </div>
-                                <div class="cr-summary-card">
-                                    <span class="cr-summary-label">Release Progress</span>
-                                    <div class="cr-progress-bar-container">
-                                        <div class="cr-progress-bar" id="cr-progress-bar" style="width:0%;"></div>
-                                    </div>
-                                    <span class="cr-summary-value" id="cr-sum-percent">0%</span>
-                                </div>
-                                <div class="cr-summary-card cr-summary-wide">
-                                    <span class="cr-summary-label">Fund State</span>
-                                    <span class="cr-summary-value" id="cr-sum-fund-state" style="font-size: 1.3rem;">No Capital</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- SECTION: Remarks -->
-                        <div class="cr-section">
-                            <div class="cr-section-title">
-                                <i class="fa-solid fa-note-sticky"></i> Remarks
-                            </div>
-                            <div class="cr-field-grid">
-                                <div class="cr-field-group cr-field-full">
-                                    <label class="cr-field-label" for="cr-remarks">
-                                        Remarks
-                                    </label>
-                                    <textarea id="cr-remarks" placeholder="Optional notes" style="min-height: 50px;"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Buttons -->
-                        <div class="cr-buttons">
-                            <button type="button" class="btn-outline" id="cr-cancel-btn" style="display: none;"
-                                onclick="app.cancelEditCashRelease()">
-                                <i class="fa-solid fa-xmark"></i> Cancel
-                            </button>
-                            <button type="button" class="btn" onclick="app.addCashRelease()">
-                                <i class="fa-solid fa-plus"></i> <span id="cr-submit-text">Add Record</span>
-                            </button>
-                        </div>
-
                     </div>
+
                 </div>
 
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-                        <h3 style="font-weight:800; font-size:1.1rem;"><i class="fa-solid fa-table-list"></i> Cash Release Records</h3>
+                        <h3 style="font-weight:800; font-size:1.1rem;"><i class="fa-solid fa-table-list"></i> Cash Release Log</h3>
                         <div style="position: relative; width: min(300px, 100%);">
                             <i class="fa-solid fa-magnifying-glass"
                                 style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
-                            <input type="text" id="search-cash-releases" placeholder="Search by project, reference, description..."
+                            <input type="text" id="search-cash-releases" placeholder="Search by date, category, name..."
                                 style="width: 100%; padding-left: 34px; border-radius: 6px; border: 1px solid var(--border); height: 34px; font-size: 13px;">
                         </div>
                     </div>
@@ -1770,19 +1596,12 @@
                         <table class="sheet-table" id="table-cash-release">
                             <thead>
                                 <tr>
-                                    <th class="cr-col-date">Date</th>
-                                    <th class="cr-col-project">Project / Site</th>
-                                    <th class="cr-col-code">Service Agreement</th>
-                                    <th class="cr-col-ref">Reference No.</th>
-                                    <th class="cr-col-desc">Description</th>
-                                    <th class="cr-col-category">Category</th>
-                                    <th class="cr-col-amount">Capital Amount</th>
-                                    <th class="cr-col-amount">Release Amount</th>
-                                    <th class="cr-col-to">Released To</th>
-                                    <th class="cr-col-method">Payment</th>
-                                    <th class="cr-col-status">Status</th>
-                                    <th class="cr-col-remarks">Remarks</th>
-                                    <th class="cr-col-action">Action</th>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Receiver Name</th>
+                                    <th>Particulars</th>
+                                    <th>Amount</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="cash-release-content"></tbody>
@@ -1819,6 +1638,10 @@
                             <input type="number" id="g-ntp-cost" placeholder="Award Cost (₱)">
                             <input type="date" id="g-ntp-due" title="Due Date" required>
                             <input type="date" id="g-ntp-accept" title="Acceptance Date">
+                            <input type="date" id="g-ntp-completion" title="Completion Date">
+                            <input type="text" id="g-ntp-work-desc" placeholder="Work Description (scope of work)">
+                            <input type="text" id="g-ntp-project-desc" placeholder="Project Description">
+                            <input type="number" id="g-ntp-total-amount" placeholder="Total Amount (₱)" step="0.01">
                             <label for="g-ntp-file" class="sr-only">NTP File</label>
                             <input type="file" id="g-ntp-file" accept=".pdf, image/*">
                             <div
@@ -1842,6 +1665,8 @@
                                         <th>Award Cost</th>
                                         <th>Due Date</th>
                                         <th>Accept Date</th>
+                                        <th>Completion Date</th>
+                                        <th>Total Amount</th>
                                         <th>Document</th>
                                     </tr>
                                 </thead>

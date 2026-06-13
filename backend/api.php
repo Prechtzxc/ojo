@@ -23,7 +23,7 @@ if (!$isPublic) {
 
 // Mutation actions must use POST only
 $mutationActions = [
-    'add_project', 'update_project_status', 'delete_project',
+    'add_project', 'update_project', 'update_project_status', 'delete_project',
     'add_checklist_task', 'update_checklist_status', 'edit_checklist_task',
     'update_task_cost', 'delete_checklist_task', 'delete_checklist_category',
     'assign_worker', 'remove_worker',
@@ -34,7 +34,7 @@ $mutationActions = [
     'add_award_cost', 'edit_award_cost', 'delete_award_cost',
     'add_payroll', 'edit_payroll_entry', 'delete_payroll_entry', 'archive_and_reset_payroll',
     'add_payroll_entry_record', 'update_payroll_entry_record', 'delete_payroll_entry_record',
-    'add_cash_release', 'update_cash_release', 'delete_cash_release',
+    'add_cash_release', 'update_cash_release', 'delete_cash_release', 'get_cash_release_category_totals',
     'upload_ntp_file',
     'add_bom_item', 'edit_bom_item', 'delete_bom_item',
     'add_billing_record', 'edit_billing_record', 'delete_billing_record',
@@ -82,7 +82,30 @@ switch ($action) {
             $_POST['start_date'] ?? '',
             $_POST['block_no'] ?? '',
             $_POST['lot_no'] ?? '',
-            $_POST['foreman_2'] ?? ''
+            $_POST['foreman_2'] ?? '',
+            $_POST['completion_date'] ?? null,
+            $_POST['work_description'] ?? null,
+            $_POST['project_description'] ?? null,
+            $_POST['total_amount'] ?? 0
+        ));
+        break;
+
+    case 'update_project':
+        echo json_encode($app->updateProject(
+            $_POST['id'] ?? '',
+            $_POST['name'] ?? '',
+            $_POST['client'] ?? '',
+            $_POST['location'] ?? '',
+            $_POST['desc'] ?? '',
+            $_POST['foreman'] ?? '',
+            $_POST['start_date'] ?? '',
+            $_POST['block_no'] ?? '',
+            $_POST['lot_no'] ?? '',
+            $_POST['foreman_2'] ?? '',
+            $_POST['completion_date'] ?? null,
+            $_POST['work_description'] ?? null,
+            $_POST['project_description'] ?? null,
+            $_POST['total_amount'] ?? 0
         ));
         break;
 
@@ -277,7 +300,8 @@ switch ($action) {
             $_POST['foreman'] ?? '',
             $_POST['contact_number'] ?? '',
             $_POST['address'] ?? '',
-            $_POST['status'] ?? 'Active'
+            $_POST['status'] ?? 'Active',
+            $_POST['project_site_text'] ?? ''
         ));
         break;
 
@@ -293,7 +317,8 @@ switch ($action) {
             $_POST['contact_number'] ?? '',
             $_POST['address'] ?? '',
             $_POST['status'] ?? 'Active',
-            $_FILES['photo'] ?? null
+            $_FILES['photo'] ?? null,
+            $_POST['project_site_text'] ?? ''
         ));
         break;
 
@@ -410,7 +435,8 @@ switch ($action) {
             $_POST['unit'] ?? '',
             $_POST['unit_cost'] ?? 0,
             $_POST['supplier_name'] ?? '',
-            $_POST['remarks'] ?? ''
+            $_POST['remarks'] ?? '',
+            $_POST['award_cost_text'] ?? ''
         ));
         break;
     case 'edit_bom_item':
@@ -424,7 +450,8 @@ switch ($action) {
             $_POST['unit'] ?? '',
             $_POST['unit_cost'] ?? 0,
             $_POST['supplier_name'] ?? '',
-            $_POST['remarks'] ?? ''
+            $_POST['remarks'] ?? '',
+            $_POST['award_cost_text'] ?? ''
         ));
         break;
     case 'delete_bom_item':
@@ -565,7 +592,8 @@ switch ($action) {
             $_POST['subcon_company'] ?? '',
             $_POST['subcon_scope'] ?? '',
             $_POST['subcon_reference_no'] ?? '',
-            $_POST['remarks'] ?? ''
+            $_POST['remarks'] ?? '',
+            $_POST['amount'] ?? 0
         ));
         break;
 
@@ -591,7 +619,8 @@ switch ($action) {
             $_POST['subcon_company'] ?? '',
             $_POST['subcon_scope'] ?? '',
             $_POST['subcon_reference_no'] ?? '',
-            $_POST['remarks'] ?? ''
+            $_POST['remarks'] ?? '',
+            $_POST['amount'] ?? 0
         ));
         break;
 
@@ -604,7 +633,7 @@ switch ($action) {
         break;
 
     // =========================
-    // CASH RELEASE (Capital Monitoring)
+    // CASH RELEASE (Simple Cash Log)
     // =========================
     case 'get_cash_releases':
         echo json_encode($app->getCashReleases());
@@ -612,6 +641,10 @@ switch ($action) {
 
     case 'get_cash_release':
         echo json_encode($app->getCashReleaseById($_POST['id'] ?? ''));
+        break;
+
+    case 'get_cash_release_category_totals':
+        echo json_encode(['status' => 'success', 'data' => $app->getCashReleaseCategoryTotals()]);
         break;
 
     case 'get_cash_release_summary':
@@ -625,36 +658,22 @@ switch ($action) {
 
     case 'add_cash_release':
         echo json_encode($app->addCashRelease(
-            $_POST['project_id'] ?? '',
-            $_POST['award_cost_id'] ?? '',
             $_POST['release_date'] ?? '',
-            $_POST['release_reference_no'] ?? '',
-            $_POST['release_description'] ?? '',
             $_POST['category'] ?? '',
-            $_POST['capital_amount'] ?? 0,
-            $_POST['release_amount'] ?? 0,
             $_POST['released_to'] ?? '',
-            $_POST['payment_method'] ?? '',
-            $_POST['remarks'] ?? '',
-            $_POST['status'] ?? 'Released'
+            $_POST['release_description'] ?? '',
+            $_POST['release_amount'] ?? 0
         ));
         break;
 
     case 'update_cash_release':
         echo json_encode($app->updateCashRelease(
             $_POST['id'] ?? '',
-            $_POST['project_id'] ?? '',
-            $_POST['award_cost_id'] ?? '',
             $_POST['release_date'] ?? '',
-            $_POST['release_reference_no'] ?? '',
-            $_POST['release_description'] ?? '',
             $_POST['category'] ?? '',
-            $_POST['capital_amount'] ?? 0,
-            $_POST['release_amount'] ?? 0,
             $_POST['released_to'] ?? '',
-            $_POST['payment_method'] ?? '',
-            $_POST['remarks'] ?? '',
-            $_POST['status'] ?? 'Released'
+            $_POST['release_description'] ?? '',
+            $_POST['release_amount'] ?? 0
         ));
         break;
 
@@ -681,7 +700,11 @@ switch ($action) {
             $_POST['award_cost'] ?? 0,
             $_POST['due_date'] ?? '',
             $_POST['accept_date'] ?? '',
-            $_FILES['file'] ?? null
+            $_FILES['file'] ?? null,
+            $_POST['completion_date'] ?? null,
+            $_POST['work_description'] ?? null,
+            $_POST['project_description'] ?? null,
+            $_POST['total_amount'] ?? 0
         ));
         break;
 

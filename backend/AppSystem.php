@@ -141,10 +141,10 @@ class ConstructionSystem
         }
     }
 
-    public function addProject($name, $client, $location, $desc, $foreman, $start_date, $block_no = '', $lot_no = '', $foreman_2 = '')
+    public function addProject($name, $client, $location, $desc, $foreman, $start_date, $block_no = '', $lot_no = '', $foreman_2 = '', $completion_date = null, $work_description = null, $project_description = null, $total_amount = 0)
     {
-        $stmt = $this->pdo->prepare("INSERT INTO projects (name, block_no, lot_no, client_name, location, description, foreman, foreman_2, start_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ongoing')");
-        $stmt->execute([$name, $block_no, $lot_no, $client, $location, $desc, $foreman, $foreman_2 ?: null, $start_date]);
+        $stmt = $this->pdo->prepare("INSERT INTO projects (name, block_no, lot_no, client_name, location, description, foreman, foreman_2, start_date, completion_date, work_description, project_description, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ongoing')");
+        $stmt->execute([$name, $block_no, $lot_no, $client, $location, $desc, $foreman, $foreman_2 ?: null, $start_date, $completion_date, $work_description, $project_description, $total_amount ?: 0]);
         $projectId = $this->pdo->lastInsertId();
 
         try {
@@ -169,6 +169,12 @@ class ConstructionSystem
         }
     }
 
+    public function updateProject($id, $name, $client, $location, $desc, $foreman, $start_date, $block_no = '', $lot_no = '', $foreman_2 = '', $completion_date = null, $work_description = null, $project_description = null, $total_amount = 0)
+    {
+        $this->pdo->prepare("UPDATE projects SET name=?, block_no=?, lot_no=?, client_name=?, location=?, description=?, foreman=?, foreman_2=?, start_date=?, completion_date=?, work_description=?, project_description=?, total_amount=? WHERE id=?")->execute([$name, $block_no, $lot_no, $client, $location, $desc, $foreman, $foreman_2 ?: null, $start_date, $completion_date, $work_description, $project_description, $total_amount ?: 0, $id]);
+        return ['status' => 'success'];
+    }
+
     public function updateProjectStatus($id, $status)
     {
         $this->pdo->prepare("UPDATE projects SET status=? WHERE id=?")->execute([strtolower(trim($status)), $id]);
@@ -185,7 +191,7 @@ class ConstructionSystem
 
     public function getProjectData($project_id)
     {
-        $projStmt = $this->pdo->prepare("SELECT id, name, block_no, lot_no, client_name, location, description, foreman, foreman_2, start_date, status FROM projects WHERE id = ?");
+        $projStmt = $this->pdo->prepare("SELECT id, name, block_no, lot_no, client_name, location, description, foreman, foreman_2, start_date, completion_date, work_description, project_description, total_amount, ntp_attachment, status FROM projects WHERE id = ?");
         $projStmt->execute([$project_id]);
         $project = $projStmt->fetch();
         $accStmt = $this->pdo->prepare("SELECT * FROM project_accomplishments WHERE project_id = ? ORDER BY id ASC");
@@ -239,12 +245,7 @@ class ConstructionSystem
     public function getSuppliers()
     {
         return $this->pdo->query("
-            SELECT s.*, p.name as project_name, p.location as project_location,
-                   bom.material_name as bom_material, inv.name as inventory_name
-            FROM suppliers s
-            LEFT JOIN projects p ON s.project_id = p.id
-            LEFT JOIN bill_of_materials bom ON s.bom_id = bom.id
-            LEFT JOIN inventory inv ON s.inventory_item_id = inv.id
+            SELECT s.* FROM suppliers s
             ORDER BY s.name ASC
         ")->fetchAll();
     }
@@ -301,19 +302,13 @@ class ConstructionSystem
     {
         $q = '%' . $query . '%';
         $stmt = $this->pdo->prepare("
-            SELECT s.*, p.name as project_name, p.location as project_location,
-                   bom.material_name as bom_material, inv.name as inventory_name
-            FROM suppliers s
-            LEFT JOIN projects p ON s.project_id = p.id
-            LEFT JOIN bill_of_materials bom ON s.bom_id = bom.id
-            LEFT JOIN inventory inv ON s.inventory_item_id = inv.id
+            SELECT s.* FROM suppliers s
             WHERE s.name LIKE ? OR s.materials LIKE ? OR s.contact LIKE ? OR s.email LIKE ?
                OR s.contact_person LIKE ? OR s.material_category LIKE ?
                OR s.payment_terms LIKE ? OR s.remarks LIKE ?
-               OR p.name LIKE ? OR bom.material_name LIKE ? OR inv.name LIKE ?
             ORDER BY s.name ASC
         ");
-        $stmt->execute([$q, $q, $q, $q, $q, $q, $q, $q, $q, $q, $q]);
+        $stmt->execute([$q, $q, $q, $q, $q, $q, $q, $q]);
         return $stmt->fetchAll();
     }
     public function getInventoryCategories()
@@ -466,10 +461,11 @@ class ConstructionSystem
                        OR m.contact_number LIKE ? 
                        OR m.address LIKE ? 
                        OR m.position LIKE ?
-                       OR p.name LIKE ?)
+                       OR p.name LIKE ?
+                       OR m.project_site_text LIKE ?)
                 ORDER BY m.name ASC
             ");
-            $stmt->execute([$q, $q, $q, $q, $q, $q, $q]);
+            $stmt->execute([$q, $q, $q, $q, $q, $q, $q, $q]);
             return $stmt->fetchAll();
         } catch (Exception $e) {
             return [];
@@ -488,7 +484,7 @@ class ConstructionSystem
     }
 
 
-    public function addManpower($name, $skills, $position, $salary, $project_id, $photo, $foreman = '', $contact_number = '', $address = '', $status = 'Active')
+    public function addManpower($name, $skills, $position, $salary, $project_id, $photo, $foreman = '', $contact_number = '', $address = '', $status = 'Active', $project_site_text = '')
     {
         try {
             $name = trim($name);
@@ -499,6 +495,7 @@ class ConstructionSystem
             $contact_number = trim($contact_number);
             $address = trim($address);
             $status = trim($status) ?: 'Active';
+            $project_site_text = trim($project_site_text);
 
             if ($name === '' || $skills === '' || $position === '' || $salary === '') {
                 return ['status' => 'error', 'message' => 'Please fill in all required fields.'];
@@ -524,8 +521,8 @@ class ConstructionSystem
             }
 
             $stmt = $this->pdo->prepare("
-                INSERT INTO manpower (name, skills, contact_number, address, position, rate, project_id, foreman, photo_path, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO manpower (name, skills, contact_number, address, position, rate, project_id, project_site_text, foreman, photo_path, status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -536,6 +533,7 @@ class ConstructionSystem
                 $position,
                 $salary,
                 $project_id ?: null,
+                $project_site_text ?: null,
                 $foreman ?: null,
                 $filePath,
                 $status
@@ -555,7 +553,7 @@ class ConstructionSystem
         }
     }
 
-    public function updateManpower($id, $name, $skills, $position, $salary, $project_id, $foreman, $contact_number, $address, $status, $photo)
+    public function updateManpower($id, $name, $skills, $position, $salary, $project_id, $foreman, $contact_number, $address, $status, $photo, $project_site_text = '')
     {
         try {
             $name = trim($name);
@@ -566,6 +564,7 @@ class ConstructionSystem
             $contact_number = trim($contact_number);
             $address = trim($address);
             $status = trim($status) ?: 'Active';
+            $project_site_text = trim($project_site_text);
 
             if ($id === '' || !$id) {
                 return ['status' => 'error', 'message' => 'Worker ID is required.'];
@@ -596,14 +595,14 @@ class ConstructionSystem
 
             if ($hasNewFile) {
                 $this->pdo->prepare("
-                    UPDATE manpower SET name = ?, skills = ?, contact_number = ?, address = ?, position = ?, rate = ?, project_id = ?, foreman = ?, photo_path = ?, status = ?
+                    UPDATE manpower SET name = ?, skills = ?, contact_number = ?, address = ?, position = ?, rate = ?, project_id = ?, project_site_text = ?, foreman = ?, photo_path = ?, status = ?
                     WHERE id = ?
-                ")->execute([$name, $skills, $contact_number ?: null, $address ?: null, $position, $salary, $project_id ?: null, $foreman ?: null, $filePath, $status, $id]);
+                ")->execute([$name, $skills, $contact_number ?: null, $address ?: null, $position, $salary, $project_id ?: null, $project_site_text ?: null, $foreman ?: null, $filePath, $status, $id]);
             } else {
                 $this->pdo->prepare("
-                    UPDATE manpower SET name = ?, skills = ?, contact_number = ?, address = ?, position = ?, rate = ?, project_id = ?, foreman = ?, status = ?
+                    UPDATE manpower SET name = ?, skills = ?, contact_number = ?, address = ?, position = ?, rate = ?, project_id = ?, project_site_text = ?, foreman = ?, status = ?
                     WHERE id = ?
-                ")->execute([$name, $skills, $contact_number ?: null, $address ?: null, $position, $salary, $project_id ?: null, $foreman ?: null, $status, $id]);
+                ")->execute([$name, $skills, $contact_number ?: null, $address ?: null, $position, $salary, $project_id ?: null, $project_site_text ?: null, $foreman ?: null, $status, $id]);
             }
 
             $this->pdo->prepare("INSERT IGNORE INTO skill_categories (name) VALUES (?)")->execute([$skills]);
@@ -960,6 +959,10 @@ class ConstructionSystem
                         $block_no = trim($item['block_no'] ?? $item['block'] ?? '');
                         $lot_no = trim($item['lot_no'] ?? $item['lot'] ?? '');
                         $foreman_2 = trim($item['foreman_2'] ?? $item['foreman2'] ?? '');
+                        $completion_date = trim($item['completion_date'] ?? '') ?: null;
+                        $work_description = trim($item['work_description'] ?? '') ?: null;
+                        $project_description = trim($item['project_description'] ?? '') ?: null;
+                        $total_amount = preg_replace('/[^0-9.]/', '', (string) ($item['total_amount'] ?? '0'));
 
                         if ($name === '' || $location === '' || $foreman === '' || $startDate === '') {
                             $skipped[] = ['line' => $lineNumber, 'reason' => 'Project name, location, foreman, and start date are required.'];
@@ -968,10 +971,10 @@ class ConstructionSystem
 
                         $stmt = $this->pdo->prepare("
                         INSERT INTO projects 
-                        (name, block_no, lot_no, client_name, location, description, foreman, foreman_2, start_date, status) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ongoing')
+                        (name, block_no, lot_no, client_name, location, description, foreman, foreman_2, start_date, completion_date, work_description, project_description, total_amount, status) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ongoing')
                     ");
-                        $stmt->execute([$name, $block_no, $lot_no, $client ?: '-', $location, $desc, $foreman, $foreman_2 ?: null, $startDate]);
+                        $stmt->execute([$name, $block_no, $lot_no, $client ?: '-', $location, $desc, $foreman, $foreman_2 ?: null, $startDate, $completion_date, $work_description, $project_description, $total_amount ?: 0]);
 
                         $projectId = $this->pdo->lastInsertId();
 
@@ -1154,9 +1157,9 @@ class ConstructionSystem
                         }
 
                         $this->pdo->prepare("
-                        INSERT INTO cash_releases (release_date, category, name, description, amount) 
-                        VALUES (?, ?, ?, ?, ?)
-                    ")->execute([$date, $category, $name, $desc, $amount]);
+                        INSERT INTO cash_releases (project_id, release_date, category, released_to, release_description, release_amount) 
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ")->execute([0, $date, $category, $name, $desc, $amount]);
 
                         $inserted++;
                         continue;
@@ -1169,6 +1172,10 @@ class ConstructionSystem
                         $awardCost = preg_replace('/[^0-9.]/', '', (string) ($item['award_cost'] ?? '0'));
                         $dueDate = trim($item['due_date'] ?? '');
                         $acceptDate = trim($item['accept_date'] ?? '');
+                        $completion_date = trim($item['completion_date'] ?? '') ?: null;
+                        $work_description = trim($item['work_description'] ?? '') ?: null;
+                        $project_description = trim($item['project_description'] ?? '') ?: null;
+                        $total_amount = preg_replace('/[^0-9.]/', '', (string) ($item['total_amount'] ?? '0'));
 
                         if ($projectRaw === '' || $date === '' || $dueDate === '') {
                             $skipped[] = ['line' => $lineNumber, 'reason' => 'Project, date received, and due date are required.'];
@@ -1190,8 +1197,8 @@ class ConstructionSystem
                     ")->execute([$projectId, $ticket, $date, $awardCost ?: 0, $dueDate, $acceptDate]);
 
                         $this->pdo->prepare("
-                        UPDATE projects SET status = 'ongoing' WHERE id = ?
-                    ")->execute([$projectId]);
+                        UPDATE projects SET status = 'ongoing', completion_date=?, work_description=?, project_description=?, total_amount=? WHERE id = ?
+                    ")->execute([$completion_date, $work_description, $project_description, $total_amount ?: 0, $projectId]);
 
                         $inserted++;
                         continue;
@@ -1348,14 +1355,10 @@ class ConstructionSystem
         }
     }
 
-    public function addPayrollEntryRecord($project_id, $worker_id, $foreman, $payroll_type, $payee_name, $position_or_role, $skill, $period_start, $period_end, $daily_rate, $days_worked, $overtime_hours, $overtime_rate, $deductions, $payment_method, $payroll_status, $subcon_company, $subcon_scope, $subcon_reference_no, $remarks)
+    public function addPayrollEntryRecord($project_id, $worker_id, $foreman, $payroll_type, $payee_name, $position_or_role, $skill, $period_start, $period_end, $daily_rate, $days_worked, $overtime_hours, $overtime_rate, $deductions, $payment_method, $payroll_status, $subcon_company, $subcon_scope, $subcon_reference_no, $remarks, $amount = 0)
     {
         try {
-            $daily_rate = floatval(preg_replace('/[^0-9.]/', '', $daily_rate));
-            $days_worked = floatval(preg_replace('/[^0-9.]/', '', $days_worked));
-            $overtime_hours = floatval(preg_replace('/[^0-9.]/', '', $overtime_hours));
-            $overtime_rate = floatval(preg_replace('/[^0-9.]/', '', $overtime_rate));
-            $deductions = floatval(preg_replace('/[^0-9.]/', '', $deductions));
+            $amount = floatval(preg_replace('/[^0-9.]/', '', $amount));
 
             if ($project_id === '' || !$project_id) {
                 return ['status' => 'error', 'message' => 'Project Site / NTP is required.'];
@@ -1379,15 +1382,35 @@ class ConstructionSystem
                 return ['status' => 'error', 'message' => 'Period End cannot be earlier than Period Start.'];
             }
 
-            if ($deductions < 0) {
-                return ['status' => 'error', 'message' => 'Deductions cannot be negative.'];
+            if ($amount < 0) {
+                return ['status' => 'error', 'message' => 'Amount cannot be negative.'];
             }
 
-            $gross_amount = ($daily_rate * $days_worked) + ($overtime_hours * $overtime_rate);
-            $net_amount = $gross_amount - $deductions;
+            if ($amount > 0) {
+                $daily_rate = 0;
+                $days_worked = 0;
+                $overtime_hours = 0;
+                $overtime_rate = 0;
+                $deductions = 0;
+                $gross_amount = $amount;
+                $net_amount = $amount;
+            } else {
+                $daily_rate = floatval(preg_replace('/[^0-9.]/', '', $daily_rate));
+                $days_worked = floatval(preg_replace('/[^0-9.]/', '', $days_worked));
+                $overtime_hours = floatval(preg_replace('/[^0-9.]/', '', $overtime_hours));
+                $overtime_rate = floatval(preg_replace('/[^0-9.]/', '', $overtime_rate));
+                $deductions = floatval(preg_replace('/[^0-9.]/', '', $deductions));
 
-            if ($net_amount < 0) {
-                return ['status' => 'error', 'message' => 'Net Amount cannot be negative. Reduce deductions.'];
+                if ($deductions < 0) {
+                    return ['status' => 'error', 'message' => 'Deductions cannot be negative.'];
+                }
+
+                $gross_amount = ($daily_rate * $days_worked) + ($overtime_hours * $overtime_rate);
+                $net_amount = $gross_amount - $deductions;
+
+                if ($net_amount < 0) {
+                    return ['status' => 'error', 'message' => 'Net Amount cannot be negative. Reduce deductions.'];
+                }
             }
 
             $stmt = $this->pdo->prepare("
@@ -1426,14 +1449,10 @@ class ConstructionSystem
         }
     }
 
-    public function updatePayrollEntryRecord($id, $project_id, $worker_id, $foreman, $payroll_type, $payee_name, $position_or_role, $skill, $period_start, $period_end, $daily_rate, $days_worked, $overtime_hours, $overtime_rate, $deductions, $payment_method, $payroll_status, $subcon_company, $subcon_scope, $subcon_reference_no, $remarks)
+    public function updatePayrollEntryRecord($id, $project_id, $worker_id, $foreman, $payroll_type, $payee_name, $position_or_role, $skill, $period_start, $period_end, $daily_rate, $days_worked, $overtime_hours, $overtime_rate, $deductions, $payment_method, $payroll_status, $subcon_company, $subcon_scope, $subcon_reference_no, $remarks, $amount = 0)
     {
         try {
-            $daily_rate = floatval(preg_replace('/[^0-9.]/', '', $daily_rate));
-            $days_worked = floatval(preg_replace('/[^0-9.]/', '', $days_worked));
-            $overtime_hours = floatval(preg_replace('/[^0-9.]/', '', $overtime_hours));
-            $overtime_rate = floatval(preg_replace('/[^0-9.]/', '', $overtime_rate));
-            $deductions = floatval(preg_replace('/[^0-9.]/', '', $deductions));
+            $amount = floatval(preg_replace('/[^0-9.]/', '', $amount));
 
             if ($id === '' || !$id) {
                 return ['status' => 'error', 'message' => 'Payroll entry ID is required.'];
@@ -1460,15 +1479,35 @@ class ConstructionSystem
                 return ['status' => 'error', 'message' => 'Period End cannot be earlier than Period Start.'];
             }
 
-            if ($deductions < 0) {
-                return ['status' => 'error', 'message' => 'Deductions cannot be negative.'];
+            if ($amount < 0) {
+                return ['status' => 'error', 'message' => 'Amount cannot be negative.'];
             }
 
-            $gross_amount = ($daily_rate * $days_worked) + ($overtime_hours * $overtime_rate);
-            $net_amount = $gross_amount - $deductions;
+            if ($amount > 0) {
+                $daily_rate = 0;
+                $days_worked = 0;
+                $overtime_hours = 0;
+                $overtime_rate = 0;
+                $deductions = 0;
+                $gross_amount = $amount;
+                $net_amount = $amount;
+            } else {
+                $daily_rate = floatval(preg_replace('/[^0-9.]/', '', $daily_rate));
+                $days_worked = floatval(preg_replace('/[^0-9.]/', '', $days_worked));
+                $overtime_hours = floatval(preg_replace('/[^0-9.]/', '', $overtime_hours));
+                $overtime_rate = floatval(preg_replace('/[^0-9.]/', '', $overtime_rate));
+                $deductions = floatval(preg_replace('/[^0-9.]/', '', $deductions));
 
-            if ($net_amount < 0) {
-                return ['status' => 'error', 'message' => 'Net Amount cannot be negative. Reduce deductions.'];
+                if ($deductions < 0) {
+                    return ['status' => 'error', 'message' => 'Deductions cannot be negative.'];
+                }
+
+                $gross_amount = ($daily_rate * $days_worked) + ($overtime_hours * $overtime_rate);
+                $net_amount = $gross_amount - $deductions;
+
+                if ($net_amount < 0) {
+                    return ['status' => 'error', 'message' => 'Net Amount cannot be negative. Reduce deductions.'];
+                }
             }
 
             $stmt = $this->pdo->prepare("
@@ -1587,17 +1626,14 @@ class ConstructionSystem
     }
 
     // =========================
-    // CASH RELEASE (Capital Monitoring)
+    // CASH RELEASE (Simple Cash Log)
     // =========================
     public function getCashReleases()
     {
         try {
             return $this->pdo->query("
-                SELECT c.*, p.name as project_name, a.service_agreement_code, a.total_amount as award_total_amount
-                FROM cash_releases c
-                LEFT JOIN projects p ON c.project_id = p.id
-                LEFT JOIN award_costs a ON c.award_cost_id = a.id
-                ORDER BY c.release_date DESC, c.id DESC
+                SELECT * FROM cash_releases
+                ORDER BY release_date DESC, id DESC
             ")->fetchAll();
         } catch (PDOException $e) {
             return [];
@@ -1608,11 +1644,7 @@ class ConstructionSystem
     {
         try {
             $stmt = $this->pdo->prepare("
-                SELECT c.*, p.name as project_name, a.service_agreement_code, a.total_amount as award_total_amount
-                FROM cash_releases c
-                LEFT JOIN projects p ON c.project_id = p.id
-                LEFT JOIN award_costs a ON c.award_cost_id = a.id
-                WHERE c.id = ?
+                SELECT * FROM cash_releases WHERE id = ?
             ");
             $stmt->execute([$id]);
             $result = $stmt->fetch();
@@ -1622,46 +1654,36 @@ class ConstructionSystem
         }
     }
 
-    public function addCashRelease($project_id, $award_cost_id, $release_date, $release_reference_no, $release_description, $category, $capital_amount, $release_amount, $released_to, $payment_method, $remarks, $status)
+    public function addCashRelease($release_date, $category, $released_to, $release_description, $release_amount)
     {
         try {
             $release_amount = floatval(preg_replace('/[^0-9.]/', '', $release_amount));
-            $capital_amount = floatval(preg_replace('/[^0-9.]/', '', $capital_amount));
 
-            if ($project_id === '' || !$project_id) {
-                return ['status' => 'error', 'message' => 'Project Site / NTP is required.'];
-            }
             if ($release_date === '') {
-                return ['status' => 'error', 'message' => 'Release Date is required.'];
+                return ['status' => 'error', 'message' => 'Date is required.'];
             }
-            if ($release_description === '') {
-                return ['status' => 'error', 'message' => 'Release Description is required.'];
+            if ($category === '') {
+                return ['status' => 'error', 'message' => 'Category is required.'];
             }
-            if ($capital_amount < 0) {
-                return ['status' => 'error', 'message' => 'Capital Amount cannot be negative.'];
+            if ($released_to === '') {
+                return ['status' => 'error', 'message' => 'Receiver name is required.'];
             }
             if ($release_amount <= 0) {
-                return ['status' => 'error', 'message' => 'Release Amount must be greater than 0.'];
+                return ['status' => 'error', 'message' => 'Amount must be greater than 0.'];
             }
 
             $stmt = $this->pdo->prepare("
                 INSERT INTO cash_releases 
-                (project_id, award_cost_id, release_date, release_reference_no, release_description, category, capital_amount, release_amount, released_to, payment_method, remarks, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (project_id, release_date, category, released_to, release_description, release_amount) 
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
-                $project_id,
-                $award_cost_id ?: null,
+                0,
                 $release_date,
-                $release_reference_no ?: null,
-                $release_description,
-                $category ?: null,
-                $capital_amount,
-                $release_amount,
-                $released_to ?: null,
-                $payment_method ?: null,
-                $remarks ?: null,
-                $status ?: 'Released'
+                $category,
+                $released_to,
+                $release_description ?: null,
+                $release_amount
             ]);
 
             return ['status' => 'success'];
@@ -1670,51 +1692,39 @@ class ConstructionSystem
         }
     }
 
-    public function updateCashRelease($id, $project_id, $award_cost_id, $release_date, $release_reference_no, $release_description, $category, $capital_amount, $release_amount, $released_to, $payment_method, $remarks, $status)
+    public function updateCashRelease($id, $release_date, $category, $released_to, $release_description, $release_amount)
     {
         try {
             $release_amount = floatval(preg_replace('/[^0-9.]/', '', $release_amount));
-            $capital_amount = floatval(preg_replace('/[^0-9.]/', '', $capital_amount));
 
             if ($id === '' || !$id) {
                 return ['status' => 'error', 'message' => 'Cash release ID is required.'];
             }
-            if ($project_id === '' || !$project_id) {
-                return ['status' => 'error', 'message' => 'Project Site / NTP is required.'];
-            }
             if ($release_date === '') {
-                return ['status' => 'error', 'message' => 'Release Date is required.'];
+                return ['status' => 'error', 'message' => 'Date is required.'];
             }
-            if ($release_description === '') {
-                return ['status' => 'error', 'message' => 'Release Description is required.'];
+            if ($category === '') {
+                return ['status' => 'error', 'message' => 'Category is required.'];
             }
-            if ($capital_amount < 0) {
-                return ['status' => 'error', 'message' => 'Capital Amount cannot be negative.'];
+            if ($released_to === '') {
+                return ['status' => 'error', 'message' => 'Receiver name is required.'];
             }
             if ($release_amount <= 0) {
-                return ['status' => 'error', 'message' => 'Release Amount must be greater than 0.'];
+                return ['status' => 'error', 'message' => 'Amount must be greater than 0.'];
             }
 
             $stmt = $this->pdo->prepare("
                 UPDATE cash_releases SET 
-                project_id = ?, award_cost_id = ?, release_date = ?, release_reference_no = ?,
-                release_description = ?, category = ?, capital_amount = ?, release_amount = ?,
-                released_to = ?, payment_method = ?, remarks = ?, status = ?
+                project_id = 0, release_date = ?, category = ?, released_to = ?,
+                release_description = ?, release_amount = ?
                 WHERE id = ?
             ");
             $stmt->execute([
-                $project_id,
-                $award_cost_id ?: null,
                 $release_date,
-                $release_reference_no ?: null,
-                $release_description,
-                $category ?: null,
-                $capital_amount,
+                $category,
+                $released_to,
+                $release_description ?: null,
                 $release_amount,
-                $released_to ?: null,
-                $payment_method ?: null,
-                $remarks ?: null,
-                $status ?: 'Released',
                 $id
             ]);
 
@@ -1739,25 +1749,35 @@ class ConstructionSystem
         try {
             $q = '%' . $query . '%';
             $stmt = $this->pdo->prepare("
-                SELECT c.*, p.name as project_name, a.service_agreement_code, a.total_amount as award_total_amount
-                FROM cash_releases c
-                LEFT JOIN projects p ON c.project_id = p.id
-                LEFT JOIN award_costs a ON c.award_cost_id = a.id
-                WHERE p.name LIKE ? 
-                   OR a.service_agreement_code LIKE ?
-                   OR c.release_reference_no LIKE ?
-                   OR c.release_description LIKE ?
-                   OR c.category LIKE ?
-                   OR c.released_to LIKE ?
-                   OR c.payment_method LIKE ?
-                   OR c.status LIKE ?
-                   OR c.remarks LIKE ?
-                ORDER BY c.release_date DESC, c.id DESC
+                SELECT * FROM cash_releases
+                WHERE release_date LIKE ?
+                   OR category LIKE ?
+                   OR released_to LIKE ?
+                   OR release_description LIKE ?
+                   OR CAST(release_amount AS CHAR) LIKE ?
+                ORDER BY release_date DESC, id DESC
             ");
-            $stmt->execute([$q, $q, $q, $q, $q, $q, $q, $q, $q]);
+            $stmt->execute([$q, $q, $q, $q, $q]);
             return $stmt->fetchAll();
         } catch (Exception $e) {
             return [];
+        }
+    }
+
+    public function getCashReleaseCategoryTotals()
+    {
+        try {
+            $stmt = $this->pdo->query("
+                SELECT 
+                    COALESCE(SUM(CASE WHEN category = 'Materials' THEN release_amount ELSE 0 END), 0) as total_materials,
+                    COALESCE(SUM(CASE WHEN category = 'Labor' THEN release_amount ELSE 0 END), 0) as total_labor,
+                    COALESCE(SUM(CASE WHEN category NOT IN ('Materials', 'Labor') THEN release_amount ELSE 0 END), 0) as total_other,
+                    COALESCE(SUM(release_amount), 0) as grand_total
+                FROM cash_releases
+            ");
+            return $stmt->fetch();
+        } catch (Exception $e) {
+            return ['total_materials' => 0, 'total_labor' => 0, 'total_other' => 0, 'grand_total' => 0];
         }
     }
 
@@ -1838,9 +1858,9 @@ class ConstructionSystem
 
     public function getAllNTPs()
     {
-        return $this->pdo->query("SELECT n.*, p.name as project_name FROM project_ntp n JOIN projects p ON n.project_id = p.id ORDER BY n.due_date ASC")->fetchAll();
+        return $this->pdo->query("SELECT n.*, p.name as project_name, p.completion_date as completion_date_project, p.work_description as work_description_project, p.project_description as project_description_project, p.total_amount as total_amount_project FROM project_ntp n JOIN projects p ON n.project_id = p.id ORDER BY n.due_date ASC")->fetchAll();
     }
-    public function uploadNTPFile($project_id, $ticket, $date, $award_cost, $due_date, $accept_date, $file)
+    public function uploadNTPFile($project_id, $ticket, $date, $award_cost, $due_date, $accept_date, $file, $completion_date = null, $work_description = null, $project_description = null, $total_amount = 0)
     {
         $filePath = '';
         if ($file && isset($file['tmp_name']) && $file['tmp_name'] && $file['error'] === UPLOAD_ERR_OK) {
@@ -1854,7 +1874,7 @@ class ConstructionSystem
             }
         }
         $this->pdo->prepare("INSERT INTO project_ntp (project_id, ntp_ticket, date_received, award_cost, due_date, acceptance_date, file_path) VALUES (?, ?, ?, ?, ?, ?, ?)")->execute([$project_id, $ticket, $date, $award_cost, $due_date, $accept_date, $filePath]);
-        $this->pdo->prepare("UPDATE projects SET status = 'ongoing' WHERE id = ?")->execute([$project_id]);
+        $this->pdo->prepare("UPDATE projects SET status = 'ongoing', completion_date=?, work_description=?, project_description=?, total_amount=? WHERE id=?")->execute([$completion_date, $work_description, $project_description, $total_amount ?: 0, $project_id]);
         return ['status' => 'success'];
     }
 
@@ -1907,7 +1927,7 @@ class ConstructionSystem
         }
     }
 
-    public function addBOMItem($project_id, $award_cost_id, $material_name, $description, $quantity, $unit, $unit_cost, $supplier_name, $remarks)
+    public function addBOMItem($project_id, $award_cost_id, $material_name, $description, $quantity, $unit, $unit_cost, $supplier_name, $remarks, $award_cost_text = '')
     {
         try {
             $quantity = floatval(preg_replace('/[^0-9.]/', '', $quantity));
@@ -1932,12 +1952,13 @@ class ConstructionSystem
 
             $stmt = $this->pdo->prepare("
                 INSERT INTO bill_of_materials 
-                (project_id, award_cost_id, material_name, description, quantity, unit, unit_cost, total_cost, supplier_name, remarks) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (project_id, award_cost_id, award_cost_text, material_name, description, quantity, unit, unit_cost, total_cost, supplier_name, remarks) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $project_id ?: null,
                 $award_cost_id ?: null,
+                $award_cost_text ?: null,
                 $material_name,
                 $description ?: null,
                 $quantity,
@@ -1954,7 +1975,7 @@ class ConstructionSystem
         }
     }
 
-    public function updateBOMItem($id, $project_id, $award_cost_id, $material_name, $description, $quantity, $unit, $unit_cost, $supplier_name, $remarks)
+    public function updateBOMItem($id, $project_id, $award_cost_id, $material_name, $description, $quantity, $unit, $unit_cost, $supplier_name, $remarks, $award_cost_text = '')
     {
         try {
             $quantity = floatval(preg_replace('/[^0-9.]/', '', $quantity));
@@ -1982,7 +2003,7 @@ class ConstructionSystem
 
             $stmt = $this->pdo->prepare("
                 UPDATE bill_of_materials SET 
-                project_id = ?, award_cost_id = ?, material_name = ?, description = ?, 
+                project_id = ?, award_cost_id = ?, award_cost_text = ?, material_name = ?, description = ?, 
                 quantity = ?, unit = ?, unit_cost = ?, total_cost = ?, 
                 supplier_name = ?, remarks = ?
                 WHERE id = ?
@@ -1990,6 +2011,7 @@ class ConstructionSystem
             $stmt->execute([
                 $project_id ?: null,
                 $award_cost_id ?: null,
+                $award_cost_text ?: null,
                 $material_name,
                 $description ?: null,
                 $quantity,
@@ -2031,7 +2053,7 @@ class ConstructionSystem
                    OR b.supplier_name LIKE ?
                    OR b.remarks LIKE ?
                    OR p.name LIKE ?
-                   OR a.service_agreement_code LIKE ?
+                   OR b.award_cost_text LIKE ?
                 ORDER BY b.created_at DESC
             ");
             $stmt->execute([$q, $q, $q, $q, $q, $q]);
@@ -2261,7 +2283,8 @@ class ConstructionSystem
             $totalAwardAmount = $awardData ? floatval($awardData['total_amount']) : 0;
             $totalBilled = floatval($totals['total_billed']);
             $totalCollected = floatval($totals['total_collected']);
-            $remainingBalance = $totalAwardAmount - $totalCollected;
+            $remainingBalance = $totalAwardAmount > 0 ? $totalAwardAmount - $totalCollected : $totalBilled - $totalCollected;
+            $remainingBalance = max(0, $remainingBalance);
             $progressPercent = $totalAwardAmount > 0 ? min(100, round(($totalCollected / $totalAwardAmount) * 100)) : 0;
 
             // Determine overall status
@@ -2274,6 +2297,8 @@ class ConstructionSystem
                 } else {
                     $overallStatus = 'Pending';
                 }
+            } elseif ($totalBilled > 0) {
+                $overallStatus = 'No Award Cost';
             }
 
             return [

@@ -53,6 +53,7 @@ const app = {
         const bomProject = document.getElementById('bom-project');
         if (bomProject) {
             bomProject.addEventListener('change', function () {
+                document.getElementById('bom-award-cost-text').value = '';
                 app.loadBOMAwardCosts(this.value);
                 if (!document.getElementById('bom-id').value) {
                     app.loadBOMItems('', this.value);
@@ -97,16 +98,6 @@ const app = {
                 this._cashReleaseSearchTimer = setTimeout(() => {
                     this.loadCashReleaseRecords(searchCashRelease.value);
                 }, 400);
-            });
-        }
-        const crProject = document.getElementById('cr-project');
-        if (crProject) {
-            crProject.addEventListener('change', function () {
-                app.loadCashReleaseAwardCosts(this.value);
-                app.loadCashReleaseSummary(this.value);
-                if (!document.getElementById('cr-id').value) {
-                    app.loadCashReleaseRecords();
-                }
             });
         }
 
@@ -468,15 +459,11 @@ const app = {
                 );
 
                 const matchedCash = (db.cash_releases || []).filter(c =>
-                    (c.project_name || '').toLowerCase().includes(q) ||
-                    (c.service_agreement_code || '').toLowerCase().includes(q) ||
-                    (c.release_reference_no || '').toLowerCase().includes(q) ||
-                    (c.release_description || '').toLowerCase().includes(q) ||
-                    (c.released_to || '').toLowerCase().includes(q) ||
+                    (c.release_date || '').toLowerCase().includes(q) ||
                     (c.category || '').toLowerCase().includes(q) ||
-                    (c.payment_method || '').toLowerCase().includes(q) ||
-                    (c.status || '').toLowerCase().includes(q) ||
-                    (c.remarks || '').toLowerCase().includes(q)
+                    (c.released_to || '').toLowerCase().includes(q) ||
+                    (c.release_description || '').toLowerCase().includes(q) ||
+                    String(c.release_amount || '').includes(q)
                 );
 
                 matchedProjs.forEach(item => {
@@ -566,7 +553,7 @@ const app = {
                     <div class="search-result-item" onclick="app.showModule('cash_release');">
                         <div class="search-icon-box" style="color:#EF4444;"><i class="fa-solid fa-hand-holding-dollar"></i></div>
                         <div class="search-content">
-                            <h4>${escapeHTML(item.project_name || item.released_to || 'Cash Release')} - ${escapeHTML(item.category || 'N/A')}</h4>
+                            <h4>${escapeHTML(item.released_to || 'Cash Release')} - ${escapeHTML(item.category || 'N/A')}</h4>
                             <p>${escapeHTML(item.release_description || 'No Description')} | Amount: ₱${parseFloat(item.release_amount || 0).toLocaleString('en-US')}</p>
                             <span class="search-category-badge" style="color:#EF4444;">Cash Release</span>
                         </div>
@@ -659,7 +646,9 @@ const app = {
             (p.lot_no || '').toLowerCase().includes(search) ||
             (p.location || '').toLowerCase().includes(search) ||
             (p.foreman || '').toLowerCase().includes(search) ||
-            (p.foreman_2 || '').toLowerCase().includes(search)
+            (p.foreman_2 || '').toLowerCase().includes(search) ||
+            (p.work_description || '').toLowerCase().includes(search) ||
+            (p.project_description || '').toLowerCase().includes(search)
         );
         if (filter !== 'all') filtered = filtered.filter(p => p.status === filter);
         filtered.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
@@ -698,6 +687,14 @@ const app = {
             document.getElementById('pd-lot-display').innerHTML = `<i class="fa-solid fa-cube"></i> Lot: ${escapeHTML(p.lot_no || '-')}`;
             document.getElementById('pd-foreman-display').innerHTML = `<i class="fa-solid fa-user-helmet"></i> Foreman 1: ${escapeHTML(p.foreman || '-')}`;
             document.getElementById('pd-foreman2-display').innerHTML = `<i class="fa-solid fa-user-helmet"></i> Foreman 2: ${escapeHTML(p.foreman_2 || '-')}`;
+            const wdEl = document.getElementById('pd-work-desc-display');
+            if (wdEl) wdEl.innerHTML = `<i class="fa-solid fa-briefcase"></i> Work: ${escapeHTML(p.work_description || '-')}`;
+            const pdEl = document.getElementById('pd-project-desc-display');
+            if (pdEl) pdEl.innerHTML = `<i class="fa-solid fa-file-lines"></i> Project: ${escapeHTML(p.project_description || '-')}`;
+            const taEl = document.getElementById('pd-total-amount-display');
+            if (taEl) taEl.innerHTML = `<i class="fa-solid fa-coins"></i> Total Amount: ${p.total_amount ? '₱' + parseFloat(p.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '-'}`;
+            const cdEl = document.getElementById('pd-completion-display');
+            if (cdEl) cdEl.innerHTML = `<i class="fa-solid fa-calendar-check"></i> Completion: ${escapeHTML(p.completion_date || '-')}`;
         }
         document.getElementById('dynamic-breadcrumbs').innerHTML = `<span class="breadcrumb-link" onclick="app.showModule('dashboard')"><i class="fa-solid fa-house"></i> Home</span><i class="fa-solid fa-chevron-right separator"></i><span class="breadcrumb-link" onclick="app.showModule('projects')">Projects (Sites)</span><i class="fa-solid fa-chevron-right separator"></i><b id="breadcrumb-current" class="active-crumb">Workspace</b>`;
         this.switchProjectTab('progress');
@@ -707,7 +704,7 @@ const app = {
         this.currentProjectId = null;
         document.getElementById('projects-list-view').style.display = 'block'; document.getElementById('project-details-view').style.display = 'none';
         document.getElementById('dynamic-breadcrumbs').innerHTML = `<span class="breadcrumb-link" onclick="app.showModule('dashboard')"><i class="fa-solid fa-house"></i> Home</span><i class="fa-solid fa-chevron-right separator"></i><b id="breadcrumb-current" class="active-crumb">Projects (Sites)</b>`;
-        ['pd-block-display','pd-lot-display','pd-foreman-display','pd-foreman2-display'].forEach(id => {
+        ['pd-block-display','pd-lot-display','pd-foreman-display','pd-foreman2-display','pd-work-desc-display','pd-project-desc-display','pd-total-amount-display','pd-completion-display'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = '';
         });
@@ -829,37 +826,8 @@ const app = {
     // MODULE: MATERIAL SUPPLIER (INLINE FORM)
     // ==========================================
     loadMaterialSuppliers: async function () {
-        this.populateSupplierProjects();
-        this.populateSupplierBOMItems();
-        this.populateSupplierInventoryItems();
         this.loadSupplierRecords();
         this.loadSupplierSummary();
-    },
-    populateSupplierProjects: async function () {
-        const proj = await this.request('get_projects');
-        const select = document.getElementById('ms-project');
-        if (!select) return;
-        select.innerHTML = '<option value="">-- Not Linked --</option>';
-        if (proj && Array.isArray(proj)) {
-            proj.forEach(p => select.innerHTML += `<option value="${p.id}">${app.esc(p.name)} - ${app.esc(p.location)}</option>`);
-        }
-    },
-    populateSupplierBOMItems: async function () {
-        const data = await this.request('get_bom_items');
-        const select = document.getElementById('ms-bom');
-        if (!select) return;
-        select.innerHTML = '<option value="">-- Not Linked --</option>';
-        const items = (data && data.status === 'success' && data.data) ? data.data : (Array.isArray(data) ? data : []);
-        items.forEach(bom => select.innerHTML += `<option value="${bom.id}">${app.esc(bom.material_name)} (${app.esc(bom.project_name || 'N/A')})</option>`);
-    },
-    populateSupplierInventoryItems: async function () {
-        const inv = await this.request('get_inventory');
-        const select = document.getElementById('ms-inventory');
-        if (!select) return;
-        select.innerHTML = '<option value="">-- Not Linked --</option>';
-        if (inv && Array.isArray(inv)) {
-            inv.forEach(item => select.innerHTML += `<option value="${item.id}">${app.esc(item.name)} (${app.esc(item.stock)} ${app.esc(item.unit)})</option>`);
-        }
     },
     loadSupplierRecords: async function (query) {
         const data = query ? await this.request('search_suppliers', { query }) : await this.request('get_suppliers');
@@ -868,7 +836,7 @@ const app = {
         const suppliers = (data && data.status === 'success' && data.data) ? data.data : (Array.isArray(data) ? data : []);
         tbody.innerHTML = '';
         if (suppliers.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="14" class="empty-state-wrapper"><i class="fa-solid fa-truck-field"></i><p>No suppliers found.</p></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" class="empty-state-wrapper"><i class="fa-solid fa-truck-field"></i><p>No suppliers found.</p></td></tr>`;
             return;
         }
         suppliers.forEach(s => {
@@ -884,9 +852,6 @@ const app = {
                 <td class="ms-col-email">${app.esc(s.email) || '-'}</td>
                 <td class="ms-col-category">${app.esc(s.material_category) || '-'}</td>
                 <td class="ms-col-materials">${app.esc(s.materials) || '-'}</td>
-                <td class="ms-col-project">${app.esc(s.project_name) || '-'}</td>
-                <td class="ms-col-bom">${app.esc(s.bom_material) || '-'}</td>
-                <td class="ms-col-inv">${app.esc(s.inventory_name) || '-'}</td>
                 <td class="ms-col-quote ms-amount-cell">${parseFloat(s.price_quote || 0).toLocaleString('en-US', {style:'currency', currency:'PHP'})}</td>
                 <td class="ms-col-terms">${app.esc(s.payment_terms) || '-'}</td>
                 <td class="ms-col-status"><span class="ms-badge ${badgeClass}">${badgeLabel}</span></td>
@@ -936,9 +901,6 @@ const app = {
         price_quote = parseFloat(price_quote) || 0;
         if (price_quote < 0) { this.showToast('Price Quote must be 0 or greater.', 'error'); return; }
         const payment_terms = document.getElementById('ms-payment-terms').value.trim();
-        const project_id = document.getElementById('ms-project').value;
-        const bom_id = document.getElementById('ms-bom').value;
-        const inventory_item_id = document.getElementById('ms-inventory').value;
         const status = document.getElementById('ms-status').value;
         const remarks = document.getElementById('ms-remarks').value.trim();
 
@@ -946,7 +908,6 @@ const app = {
             name, contact_person, contact, email, address,
             material_category, materials,
             price_quote, payment_terms,
-            project_id, bom_id, inventory_item_id,
             status, remarks
         };
         if (id) payload.id = id;
@@ -978,9 +939,6 @@ const app = {
         const pq = parseFloat(r.price_quote || 0);
         document.getElementById('ms-price-quote').value = pq.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         document.getElementById('ms-payment-terms').value = r.payment_terms || '';
-        document.getElementById('ms-project').value = r.project_id || '';
-        document.getElementById('ms-bom').value = r.bom_id || '';
-        document.getElementById('ms-inventory').value = r.inventory_item_id || '';
         document.getElementById('ms-status').value = r.status || 'Active';
         document.getElementById('ms-remarks').value = r.remarks || '';
         document.getElementById('ms-submit-text').textContent = 'Update Supplier';
@@ -998,9 +956,6 @@ const app = {
         document.getElementById('ms-materials').value = '';
         document.getElementById('ms-price-quote').value = '';
         document.getElementById('ms-payment-terms').value = '';
-        document.getElementById('ms-project').value = '';
-        document.getElementById('ms-bom').value = '';
-        document.getElementById('ms-inventory').value = '';
         document.getElementById('ms-status').value = 'Active';
         document.getElementById('ms-remarks').value = '';
         document.getElementById('ms-submit-text').textContent = 'Add Supplier';
@@ -1077,6 +1032,7 @@ const app = {
         if (position === 'ADD_NEW') position = (positionNewInput?.value || '').trim();
         const salary = (salaryInput?.value || '').trim();
         const project_id = projectInput?.value || '';
+        const project_site_text = document.getElementById('man-project-text')?.value?.trim() || '';
         const foreman = foremanInput?.value || '';
         const contact_number = contactInput?.value || '';
         const address = addressInput?.value || '';
@@ -1094,6 +1050,7 @@ const app = {
         fd.append('position', position);
         fd.append('salary', salary);
         fd.append('project_id', project_id || '');
+        fd.append('project_site_text', project_site_text);
         fd.append('foreman', foreman);
         fd.append('contact_number', contact_number);
         fd.append('address', address);
@@ -1122,7 +1079,7 @@ const app = {
     },
 
     clearManpowerForm: function () {
-        ['man-id', 'man-name', 'man-skills-new', 'man-pos-new', 'man-salary', 'man-contact', 'man-address', 'man-foreman'].forEach(id => {
+        ['man-id', 'man-name', 'man-skills-new', 'man-pos-new', 'man-salary', 'man-contact', 'man-address', 'man-foreman', 'man-project-text'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -1356,7 +1313,7 @@ const app = {
 
             tbody.innerHTML += `<tr>
                 <td>${nameDisplay}</td>
-                <td>${escapeHTML(w.project_name) || '<small style="color:var(--text-muted);">Unassigned</small>'}</td>
+                <td>${escapeHTML(w.project_site_text || w.project_name) || '<small style="color:var(--text-muted);">Unassigned</small>'}</td>
                 <td>${escapeHTML(w.skills) || 'Uncategorized'}</td>
                 <td>${escapeHTML(w.position) || 'N/A'}</td>
                 <td style="font-weight:600;">₱${parseFloat(w.rate || w.salary || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -1430,7 +1387,7 @@ const app = {
 
             tbody.innerHTML += `<tr>
                 <td>${nameDisplay}</td>
-                <td>${escapeHTML(w.project_name) || '<small style="color:var(--text-muted);">Unassigned</small>'}</td>
+                <td>${escapeHTML(w.project_site_text || w.project_name) || '<small style="color:var(--text-muted);">Unassigned</small>'}</td>
                 <td>${escapeHTML(w.skills) || 'Uncategorized'}</td>
                 <td>${escapeHTML(w.position) || 'N/A'}</td>
                 <td style="font-weight:600;">₱${parseFloat(w.rate || w.salary || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -1466,6 +1423,7 @@ const app = {
         document.getElementById('man-pos-new').style.display = 'none';
         document.getElementById('man-salary').value = parseFloat(worker.rate || worker.salary || 0);
         document.getElementById('man-project').value = worker.project_id || '';
+        document.getElementById('man-project-text').value = worker.project_site_text || '';
         document.getElementById('man-foreman').value = worker.foreman || '';
         document.getElementById('man-contact').value = worker.contact_number || '';
         document.getElementById('man-address').value = worker.address || '';
@@ -1627,7 +1585,7 @@ const app = {
 
             tbody.innerHTML += `<tr>
                 <td>${nameDisplay}</td>
-                <td>${escapeHTML(w.project_name) || '<small style="color:var(--text-muted);">Unassigned</small>'}</td>
+                <td>${escapeHTML(w.project_site_text || w.project_name) || '<small style="color:var(--text-muted);">Unassigned</small>'}</td>
                 <td>${escapeHTML(w.skills) || 'Uncategorized'}</td>
                 <td>${escapeHTML(w.position) || 'N/A'}</td>
                 <td style="font-weight:600;">₱${parseFloat(w.rate || w.salary || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -1741,6 +1699,11 @@ const app = {
             document.getElementById('awd-block').value = '';
             document.getElementById('awd-lot').value = '';
             document.getElementById('awd-location').value = '';
+            document.getElementById('awd-start').value = '';
+            document.getElementById('awd-completion').value = '';
+            document.getElementById('awd-work-desc').value = '';
+            document.getElementById('awd-project-desc').value = '';
+            document.getElementById('awd-total-amount').value = '';
             return;
         }
         const projects = window.allProjectsData || await this.request('get_projects');
@@ -1749,6 +1712,11 @@ const app = {
             document.getElementById('awd-block').value = proj.block_no || '';
             document.getElementById('awd-lot').value = proj.lot_no || '';
             document.getElementById('awd-location').value = proj.location || '';
+            document.getElementById('awd-start').value = proj.start_date || '';
+            document.getElementById('awd-completion').value = proj.completion_date || '';
+            document.getElementById('awd-work-desc').value = proj.work_description || '';
+            document.getElementById('awd-project-desc').value = proj.project_description || '';
+            document.getElementById('awd-total-amount').value = proj.total_amount ? parseFloat(proj.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '';
         }
     },
 
@@ -1942,7 +1910,7 @@ const app = {
             }
         }
         const awardSelect = document.getElementById('bom-award-cost');
-        if (awardSelect) awardSelect.innerHTML = '<option value="">No Award Cost reference</option>';
+        if (awardSelect) awardSelect.innerHTML = '<option value="">Select Award Cost (Optional)</option>';
         this.clearBOMForm();
         this.loadBOMItems();
     },
@@ -1950,12 +1918,12 @@ const app = {
     loadBOMAwardCosts: async function (projectId) {
         const awardSelect = document.getElementById('bom-award-cost');
         if (!awardSelect) return;
-        awardSelect.innerHTML = '<option value="">No Award Cost reference</option>';
+        awardSelect.innerHTML = '<option value="">Select Award Cost (Optional)</option>';
         if (!projectId) return;
         const data = await this.request('get_award_costs_for_bom', { project_id: projectId });
         if (data && Array.isArray(data)) {
             data.forEach(a => {
-                awardSelect.innerHTML += `<option value="${a.id}">${escapeHTML(a.service_agreement_code)} - ${escapeHTML(a.item || '')}</option>`;
+                awardSelect.innerHTML += `<option value="${a.id}">${escapeHTML(a.service_agreement_code)}${a.item ? ' - ' + escapeHTML(a.item) : ''}</option>`;
             });
         }
     },
@@ -1970,7 +1938,8 @@ const app = {
     clearBOMForm: function () {
         document.getElementById('bom-id').value = '';
         document.getElementById('bom-project').value = '';
-        document.getElementById('bom-award-cost').innerHTML = '<option value="">No Award Cost reference</option>';
+        document.getElementById('bom-award-cost').innerHTML = '<option value="">Select Award Cost (Optional)</option>';
+        document.getElementById('bom-award-cost-text').value = '';
         document.getElementById('bom-material-name').value = '';
         document.getElementById('bom-description').value = '';
         document.getElementById('bom-quantity').value = '';
@@ -1989,6 +1958,7 @@ const app = {
         const id = document.getElementById('bom-id').value;
         const project_id = document.getElementById('bom-project').value;
         const award_cost_id = document.getElementById('bom-award-cost').value;
+        const award_cost_text = document.getElementById('bom-award-cost-text').value.trim();
         const material_name = document.getElementById('bom-material-name').value.trim();
         const description = document.getElementById('bom-description').value.trim();
         const quantity = document.getElementById('bom-quantity').value;
@@ -2005,7 +1975,7 @@ const app = {
 
         const action = id ? 'edit_bom_item' : 'add_bom_item';
         const payload = {
-            id, project_id, award_cost_id, material_name, description,
+            id, project_id, award_cost_id, award_cost_text, material_name, description,
             quantity, unit, unit_cost, supplier_name, remarks
         };
 
@@ -2045,13 +2015,13 @@ const app = {
             const unitCost = parseFloat(d.unit_cost || 0);
             const totalCost = parseFloat(d.total_cost || 0);
             const projectName = d.project_name || 'N/A';
-            const serviceCode = d.service_agreement_code || '';
+            const awardCostRef = d.award_cost_text || d.service_agreement_code || '';
             const supplier = d.supplier_name || '';
             const remarks = d.remarks || '';
 
             tbody.innerHTML += `<tr>
                 <td><span class="bom-project-badge">${escapeHTML(projectName)}</span></td>
-                <td>${serviceCode ? escapeHTML(serviceCode) : '<span class="bom-no-data">—</span>'}</td>
+                <td>${awardCostRef ? escapeHTML(awardCostRef) : '<span class="bom-no-data">—</span>'}</td>
                 <td><b>${escapeHTML(d.material_name)}</b>${d.description ? `<br><span class="bom-desc">${escapeHTML(d.description)}</span>` : ''}</td>
                 <td class="bom-col-qty">${qty.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                 <td class="bom-col-unit">${escapeHTML(d.unit)}</td>
@@ -2081,6 +2051,7 @@ const app = {
         // Load award costs for this project
         await this.loadBOMAwardCosts(d.project_id);
         document.getElementById('bom-award-cost').value = d.award_cost_id || '';
+        document.getElementById('bom-award-cost-text').value = d.award_cost_text || '';
 
         document.getElementById('bom-material-name').value = d.material_name || '';
         document.getElementById('bom-description').value = d.description || '';
@@ -2245,13 +2216,7 @@ const app = {
         document.getElementById('pe-skill').value = '';
         document.getElementById('pe-period-start').value = '';
         document.getElementById('pe-period-end').value = '';
-        document.getElementById('pe-daily-rate').value = '';
-        document.getElementById('pe-days-worked').value = '';
-        document.getElementById('pe-ot-hours').value = '';
-        document.getElementById('pe-ot-rate').value = '';
-        document.getElementById('pe-gross-amount').value = '';
-        document.getElementById('pe-deductions').value = '';
-        document.getElementById('pe-net-amount').value = '';
+        document.getElementById('pe-amount').value = '';
         document.getElementById('pe-payment-method').value = '';
         document.getElementById('pe-status').value = 'Pending';
         document.getElementById('pe-remarks').value = '';
@@ -2311,32 +2276,16 @@ const app = {
                 document.getElementById('pe-payee-name').value = worker.name || '';
                 document.getElementById('pe-position').value = worker.position || '';
                 document.getElementById('pe-skill').value = worker.skills || '';
-                document.getElementById('pe-daily-rate').value = worker.rate || '';
                 document.getElementById('pe-foreman').value = worker.foreman || '';
-                this.computePayrollEntryNet();
             }
         }
-    },
-
-    computePayrollEntryNet: function () {
-        const dailyRate = parseFloat(document.getElementById('pe-daily-rate').value.replace(/,/g, '')) || 0;
-        const daysWorked = parseFloat(document.getElementById('pe-days-worked').value.replace(/,/g, '')) || 0;
-        const otHours = parseFloat(document.getElementById('pe-ot-hours').value.replace(/,/g, '')) || 0;
-        const otRate = parseFloat(document.getElementById('pe-ot-rate').value.replace(/,/g, '')) || 0;
-        const deductions = parseFloat(document.getElementById('pe-deductions').value.replace(/,/g, '')) || 0;
-
-        const gross = (dailyRate * daysWorked) + (otHours * otRate);
-        const net = Math.max(0, gross - deductions);
-
-        document.getElementById('pe-gross-amount').value = gross.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-        document.getElementById('pe-net-amount').value = net.toLocaleString('en-PH', { minimumFractionDigits: 2 });
     },
 
     loadPayrollEntryRecords: async function (query) {
         const q = query || document.getElementById('search-payroll-entries')?.value || '';
         const tbody = document.querySelector('#table-payroll-entries tbody');
         if (!tbody) return;
-        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Retrieving records...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Retrieving records...</td></tr>`;
 
         let data;
         if (q.trim()) {
@@ -2353,7 +2302,7 @@ const app = {
         const tbody = document.querySelector('#table-payroll-entries tbody');
         if (!tbody) return;
         if (!this._payrollEntryData || !this._payrollEntryData.length) {
-            tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text-muted);">No payroll entries found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--text-muted);">No payroll entries found.</td></tr>`;
             return;
         }
         tbody.innerHTML = this._payrollEntryData.map(r => {
@@ -2368,8 +2317,6 @@ const app = {
                 <td>${app.esc(r.worker_name || '—')}</td>
                 <td>${app.esc(r.foreman || '—')}</td>
                 <td>${app.esc(periodStr)}</td>
-                <td class="pe-amount-cell">₱${parseFloat(r.gross_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                <td class="pe-amount-cell" style="color:var(--danger);">₱${parseFloat(r.deductions || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                 <td class="pe-amount-cell" style="font-weight:800;">₱${parseFloat(r.net_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                 <td>${app.esc(r.payment_method || '—')}</td>
                 <td><span class="pe-badge ${statusClass}">${app.esc(r.payroll_status)}</span></td>
@@ -2388,8 +2335,7 @@ const app = {
         if (data && data.status === 'success' && data.data) {
             const s = data.data;
             document.getElementById('pe-sum-gross').textContent = `₱${parseFloat(s.total_gross || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-            document.getElementById('pe-sum-deductions').textContent = `₱${parseFloat(s.total_deductions || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-            document.getElementById('pe-sum-net').textContent = `₱${parseFloat(s.total_net || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+
             document.getElementById('pe-sum-paid').textContent = `₱${parseFloat(s.total_paid || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
             document.getElementById('pe-sum-pending').textContent = `₱${parseFloat(s.total_pending || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
             document.getElementById('pe-sum-manpower-count').textContent = s.manpower_count || 0;
@@ -2410,16 +2356,8 @@ const app = {
         if (!period_end) { this.showToast('Period End is required.', 'error'); return; }
         if (period_end < period_start) { this.showToast('Period End cannot be earlier than Period Start.', 'error'); return; }
 
-        const daily_rate = parseFloat(document.getElementById('pe-daily-rate').value.replace(/,/g, '')) || 0;
-        const days_worked = parseFloat(document.getElementById('pe-days-worked').value.replace(/,/g, '')) || 0;
-        const overtime_hours = parseFloat(document.getElementById('pe-ot-hours').value.replace(/,/g, '')) || 0;
-        const overtime_rate = parseFloat(document.getElementById('pe-ot-rate').value.replace(/,/g, '')) || 0;
-        const deductions = parseFloat(document.getElementById('pe-deductions').value.replace(/,/g, '')) || 0;
-        if (deductions < 0) { this.showToast('Deductions cannot be negative.', 'error'); return; }
-
-        const gross = (daily_rate * days_worked) + (overtime_hours * overtime_rate);
-        const net = gross - deductions;
-        if (net < 0) { this.showToast('Net Amount cannot be negative. Reduce deductions.', 'error'); return; }
+        const amount = parseFloat(document.getElementById('pe-amount').value) || 0;
+        if (amount < 0) { this.showToast('Amount cannot be negative.', 'error'); return; }
 
         const payload = {
             project_id,
@@ -2431,11 +2369,7 @@ const app = {
             skill: document.getElementById('pe-skill').value.trim(),
             period_start,
             period_end,
-            daily_rate,
-            days_worked,
-            overtime_hours,
-            overtime_rate,
-            deductions,
+            amount,
             payment_method: document.getElementById('pe-payment-method').value,
             payroll_status: document.getElementById('pe-status').value,
             subcon_company: document.getElementById('pe-subcon-company').value.trim(),
@@ -2454,13 +2388,7 @@ const app = {
             document.getElementById('pe-cancel-btn').style.display = 'none';
             document.getElementById('pe-period-start').value = '';
             document.getElementById('pe-period-end').value = '';
-            document.getElementById('pe-daily-rate').value = '';
-            document.getElementById('pe-days-worked').value = '';
-            document.getElementById('pe-ot-hours').value = '';
-            document.getElementById('pe-ot-rate').value = '';
-            document.getElementById('pe-gross-amount').value = '';
-            document.getElementById('pe-deductions').value = '';
-            document.getElementById('pe-net-amount').value = '';
+            document.getElementById('pe-amount').value = '';
             document.getElementById('pe-payment-method').value = '';
             document.getElementById('pe-status').value = 'Pending';
             document.getElementById('pe-remarks').value = '';
@@ -2492,18 +2420,13 @@ const app = {
         document.getElementById('pe-skill').value = r.skill || '';
         document.getElementById('pe-period-start').value = r.period_start || '';
         document.getElementById('pe-period-end').value = r.period_end || '';
-        document.getElementById('pe-daily-rate').value = r.daily_rate || '';
-        document.getElementById('pe-days-worked').value = r.days_worked || '';
-        document.getElementById('pe-ot-hours').value = r.overtime_hours || '';
-        document.getElementById('pe-ot-rate').value = r.overtime_rate || '';
-        document.getElementById('pe-deductions').value = r.deductions || '';
+        document.getElementById('pe-amount').value = r.net_amount || r.gross_amount || '';
         document.getElementById('pe-payment-method').value = r.payment_method || '';
         document.getElementById('pe-status').value = r.payroll_status || 'Pending';
         document.getElementById('pe-remarks').value = r.remarks || '';
         document.getElementById('pe-subcon-company').value = r.subcon_company || '';
         document.getElementById('pe-subcon-scope').value = r.subcon_scope || '';
         document.getElementById('pe-subcon-ref').value = r.subcon_reference_no || '';
-        this.computePayrollEntryNet();
         document.getElementById('pe-submit-text').textContent = 'Update Payroll Entry';
         document.getElementById('pe-cancel-btn').style.display = '';
         document.querySelector('#mod-payroll .card:last-child')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2515,13 +2438,7 @@ const app = {
         document.getElementById('pe-cancel-btn').style.display = 'none';
         document.getElementById('pe-period-start').value = '';
         document.getElementById('pe-period-end').value = '';
-        document.getElementById('pe-daily-rate').value = '';
-        document.getElementById('pe-days-worked').value = '';
-        document.getElementById('pe-ot-hours').value = '';
-        document.getElementById('pe-ot-rate').value = '';
-        document.getElementById('pe-gross-amount').value = '';
-        document.getElementById('pe-deductions').value = '';
-        document.getElementById('pe-net-amount').value = '';
+        document.getElementById('pe-amount').value = '';
         document.getElementById('pe-payment-method').value = '';
         document.getElementById('pe-status').value = 'Pending';
         document.getElementById('pe-remarks').value = '';
@@ -2549,99 +2466,24 @@ const app = {
         document.getElementById('cr-id').value = '';
         document.getElementById('cr-submit-text').textContent = 'Add Record';
         document.getElementById('cr-cancel-btn').style.display = 'none';
-        document.getElementById('cr-project').value = '';
-        document.getElementById('cr-award-cost').value = '';
         document.getElementById('cr-date').value = '';
-        document.getElementById('cr-ref-no').value = '';
-        document.getElementById('cr-description').value = '';
         document.getElementById('cr-category').value = '';
-        document.getElementById('cr-capital-amount').value = '';
-        document.getElementById('cr-release-amount').value = '';
-        document.getElementById('cr-released-to').value = '';
-        document.getElementById('cr-payment-method').value = '';
-        document.getElementById('cr-status').value = 'Released';
-        document.getElementById('cr-remarks').value = '';
-        document.getElementById('cr-sum-capital').textContent = '₱0.00';
-        document.getElementById('cr-sum-released').textContent = '₱0.00';
-        document.getElementById('cr-sum-balance').textContent = '₱0.00';
-        document.getElementById('cr-sum-percent').textContent = '0%';
-        document.getElementById('cr-sum-fund-state').textContent = 'No Capital';
-        document.getElementById('cr-progress-bar').style.width = '0%';
+        document.getElementById('cr-receiver').value = '';
+        document.getElementById('cr-particulars').value = '';
+        document.getElementById('cr-amount').value = '';
 
-        await this.populateCashReleaseProjects();
+        await this.loadCashReleaseCategoryTotals();
         await this.loadCashReleaseRecords();
     },
 
-    populateCashReleaseProjects: async function () {
-        const data = await this.request('get_projects');
-        const sel = document.getElementById('cr-project');
-        sel.innerHTML = '<option value="">Select Project Site / NTP</option>';
-        const list = (data && data.status === 'success' && data.data) ? data.data : (Array.isArray(data) ? data : []);
-        list.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            const label = p.name + (p.block_no ? ` (Blk ${p.block_no}` + (p.lot_no ? ` Lot ${p.lot_no}` : '') + ')' : '');
-            opt.textContent = label;
-            sel.appendChild(opt);
-        });
-    },
-
-    loadCashReleaseAwardCosts: async function (projectId) {
-        const sel = document.getElementById('cr-award-cost');
-        sel.innerHTML = '<option value="">No Award Cost reference</option>';
-        if (!projectId) return;
-        const data = await this.request('get_award_costs_for_cash_release', { project_id: projectId });
-        const list = (data && data.status === 'success' && data.data) ? data.data : (Array.isArray(data) ? data : []);
-        list.forEach(a => {
-            const opt = document.createElement('option');
-            opt.value = a.id;
-            opt.textContent = `${a.service_agreement_code} - ₱${parseFloat(a.total_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-            sel.appendChild(opt);
-        });
-    },
-
-    loadCashReleaseSummary: async function (projectId) {
-        if (!projectId) {
-            document.getElementById('cr-sum-capital').textContent = '₱0.00';
-            document.getElementById('cr-sum-released').textContent = '₱0.00';
-            document.getElementById('cr-sum-balance').textContent = '₱0.00';
-            document.getElementById('cr-sum-percent').textContent = '0%';
-            document.getElementById('cr-sum-fund-state').textContent = 'No Capital';
-            document.getElementById('cr-progress-bar').style.width = '0%';
-            return;
-        }
-        const data = await this.request('get_cash_release_summary', { project_id: projectId });
+    loadCashReleaseCategoryTotals: async function () {
+        const data = await this.request('get_cash_release_category_totals');
         if (data && data.status === 'success' && data.data) {
-            const s = data.data;
-            document.getElementById('cr-sum-capital').textContent = `₱${parseFloat(s.award_total_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-            document.getElementById('cr-sum-released').textContent = `₱${parseFloat(s.total_released || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-            const balance = parseFloat(s.remaining_balance || 0);
-            const balanceEl = document.getElementById('cr-sum-balance');
-            if (balance < 0) {
-                balanceEl.textContent = `-₱${Math.abs(balance).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-                balanceEl.style.color = 'var(--danger)';
-            } else {
-                balanceEl.textContent = `₱${balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-                balanceEl.style.color = '';
-            }
-            const pct = parseFloat(s.progress_percent || 0);
-            document.getElementById('cr-progress-bar').style.width = `${Math.min(pct, 100)}%`;
-            document.getElementById('cr-sum-percent').textContent = `${pct.toFixed(1)}%`;
-            if (pct >= 100) {
-                document.getElementById('cr-progress-bar').style.background = 'linear-gradient(90deg, #EF4444, #DC2626)';
-            } else {
-                document.getElementById('cr-progress-bar').style.background = 'linear-gradient(90deg, #FACC15, #EAB308)';
-            }
-            const fundState = s.fund_state || 'No Capital';
-            const fsEl = document.getElementById('cr-sum-fund-state');
-            fsEl.textContent = fundState;
-            if (fundState === 'Over Budget') {
-                fsEl.style.color = 'var(--danger)';
-            } else if (fundState === 'Within Capital') {
-                fsEl.style.color = 'var(--success)';
-            } else {
-                fsEl.style.color = 'var(--text-muted)';
-            }
+            const t = data.data;
+            document.getElementById('cr-total-materials').textContent = '₱' + parseFloat(t.total_materials || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+            document.getElementById('cr-total-labor').textContent = '₱' + parseFloat(t.total_labor || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+            document.getElementById('cr-total-other').textContent = '₱' + parseFloat(t.total_other || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+            document.getElementById('cr-grand-total').textContent = '₱' + parseFloat(t.grand_total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
         }
     },
 
@@ -2649,7 +2491,7 @@ const app = {
         const q = query || document.getElementById('search-cash-releases')?.value || '';
         const tbody = document.getElementById('cash-release-content');
         if (!tbody) return;
-        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Retrieving records...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Retrieving records...</td></tr>`;
 
         let data;
         if (q.trim()) {
@@ -2659,35 +2501,23 @@ const app = {
         }
         this._cashReleaseData = (data && data.status === 'success' && data.data) ? data.data : (Array.isArray(data) ? data : []);
         this.renderCashReleaseTable();
-        const sel = document.getElementById('cr-project');
-        if (sel && sel.value) {
-            this.loadCashReleaseSummary(sel.value);
-        }
     },
 
     renderCashReleaseTable: function () {
         const tbody = document.getElementById('cash-release-content');
         if (!tbody) return;
         if (!this._cashReleaseData || !this._cashReleaseData.length) {
-            tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--text-muted);">No cash release records found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">No cash release records found.</td></tr>`;
             return;
         }
         tbody.innerHTML = this._cashReleaseData.map(r => {
-            const statusClass = `cr-status-${(r.status || 'Released').toLowerCase().replace(/\s+/g, '-')}`;
-            const bal = parseFloat(r.capital_amount || 0) - parseFloat(r.release_amount || 0);
+            const amount = parseFloat(r.release_amount || 0);
             return `<tr>
                 <td>${app.esc(r.release_date || '')}</td>
-                <td>${app.esc(r.project_name || '')}</td>
-                <td>${app.esc(r.service_agreement_code || '—')}</td>
-                <td>${app.esc(r.release_reference_no || '—')}</td>
-                <td>${app.esc(r.release_description || '')}</td>
                 <td>${app.esc(r.category || '—')}</td>
-                <td class="cr-amount-cell">₱${parseFloat(r.capital_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                <td class="cr-amount-cell" style="color:var(--danger);">-₱${parseFloat(r.release_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                 <td>${app.esc(r.released_to || '—')}</td>
-                <td>${app.esc(r.payment_method || '—')}</td>
-                <td><span class="cr-badge ${statusClass}">${app.esc(r.status)}</span></td>
-                <td>${app.esc(r.remarks || '')}</td>
+                <td>${app.esc(r.release_description || '')}</td>
+                <td class="cr-amount-out">-₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                 <td>
                     <button class="action-btn" onclick="app.editCashRelease('${r.id}')" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
                     <button class="action-btn" onclick="app.deleteCashRelease('${r.id}')" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
@@ -2698,30 +2528,22 @@ const app = {
 
     addCashRelease: async function () {
         const id = document.getElementById('cr-id').value;
-        const project_id = document.getElementById('cr-project').value;
-        if (!project_id) { this.showToast('Please select a project.', 'error'); return; }
         const release_date = document.getElementById('cr-date').value;
-        if (!release_date) { this.showToast('Please select a release date.', 'error'); return; }
-        const release_description = document.getElementById('cr-description').value.trim();
-        if (!release_description) { this.showToast('Please enter a release description.', 'error'); return; }
-        const capital_amount = parseFloat(document.getElementById('cr-capital-amount').value.replace(/,/g, '')) || 0;
-        if (capital_amount < 0) { this.showToast('Capital Amount cannot be negative.', 'error'); return; }
-        const release_amount = parseFloat(document.getElementById('cr-release-amount').value.replace(/,/g, '')) || 0;
-        if (release_amount <= 0) { this.showToast('Release Amount must be greater than 0.', 'error'); return; }
+        if (!release_date) { this.showToast('Please select a date.', 'error'); return; }
+        const category = document.getElementById('cr-category').value;
+        if (!category) { this.showToast('Please select a category.', 'error'); return; }
+        const receiver = document.getElementById('cr-receiver').value.trim();
+        if (!receiver) { this.showToast('Please enter receiver name.', 'error'); return; }
+        const particulars = document.getElementById('cr-particulars').value.trim();
+        const amount = parseFloat(document.getElementById('cr-amount').value) || 0;
+        if (amount <= 0) { this.showToast('Amount must be greater than 0.', 'error'); return; }
 
         const payload = {
-            project_id,
-            award_cost_id: document.getElementById('cr-award-cost').value,
             release_date,
-            release_reference_no: document.getElementById('cr-ref-no').value.trim(),
-            release_description,
-            category: document.getElementById('cr-category').value,
-            capital_amount,
-            release_amount,
-            released_to: document.getElementById('cr-released-to').value.trim(),
-            payment_method: document.getElementById('cr-payment-method').value,
-            remarks: document.getElementById('cr-remarks').value.trim(),
-            status: document.getElementById('cr-status').value
+            category,
+            released_to: receiver,
+            release_description: particulars,
+            release_amount: amount
         };
 
         const action = id ? 'update_cash_release' : 'add_cash_release';
@@ -2733,17 +2555,12 @@ const app = {
             document.getElementById('cr-submit-text').textContent = 'Add Record';
             document.getElementById('cr-cancel-btn').style.display = 'none';
             document.getElementById('cr-date').value = '';
-            document.getElementById('cr-ref-no').value = '';
-            document.getElementById('cr-description').value = '';
             document.getElementById('cr-category').value = '';
-            document.getElementById('cr-capital-amount').value = '';
-            document.getElementById('cr-release-amount').value = '';
-            document.getElementById('cr-released-to').value = '';
-            document.getElementById('cr-payment-method').value = '';
-            document.getElementById('cr-remarks').value = '';
-            document.getElementById('cr-status').value = 'Released';
+            document.getElementById('cr-receiver').value = '';
+            document.getElementById('cr-particulars').value = '';
+            document.getElementById('cr-amount').value = '';
             await this.loadCashReleaseRecords();
-            if (project_id) await this.loadCashReleaseSummary(project_id);
+            await this.loadCashReleaseCategoryTotals();
             this.loadDashboard();
         } else {
             this.showToast(data?.message || 'Operation failed.', 'error');
@@ -2758,19 +2575,11 @@ const app = {
         }
         const r = data.data;
         document.getElementById('cr-id').value = r.id;
-        document.getElementById('cr-project').value = r.project_id;
-        await this.loadCashReleaseAwardCosts(r.project_id);
-        document.getElementById('cr-award-cost').value = r.award_cost_id || '';
         document.getElementById('cr-date').value = r.release_date || '';
-        document.getElementById('cr-ref-no').value = r.release_reference_no || '';
-        document.getElementById('cr-description').value = r.release_description || '';
         document.getElementById('cr-category').value = r.category || '';
-        document.getElementById('cr-capital-amount').value = r.capital_amount || '';
-        document.getElementById('cr-release-amount').value = r.release_amount || '';
-        document.getElementById('cr-released-to').value = r.released_to || '';
-        document.getElementById('cr-payment-method').value = r.payment_method || '';
-        document.getElementById('cr-status').value = r.status || 'Released';
-        document.getElementById('cr-remarks').value = r.remarks || '';
+        document.getElementById('cr-receiver').value = r.released_to || '';
+        document.getElementById('cr-particulars').value = r.release_description || '';
+        document.getElementById('cr-amount').value = r.release_amount || '';
         document.getElementById('cr-submit-text').textContent = 'Update Record';
         document.getElementById('cr-cancel-btn').style.display = '';
 
@@ -2782,15 +2591,10 @@ const app = {
         document.getElementById('cr-submit-text').textContent = 'Add Record';
         document.getElementById('cr-cancel-btn').style.display = 'none';
         document.getElementById('cr-date').value = '';
-        document.getElementById('cr-ref-no').value = '';
-        document.getElementById('cr-description').value = '';
         document.getElementById('cr-category').value = '';
-        document.getElementById('cr-capital-amount').value = '';
-        document.getElementById('cr-release-amount').value = '';
-        document.getElementById('cr-released-to').value = '';
-        document.getElementById('cr-payment-method').value = '';
-        document.getElementById('cr-remarks').value = '';
-        document.getElementById('cr-status').value = 'Released';
+        document.getElementById('cr-receiver').value = '';
+        document.getElementById('cr-particulars').value = '';
+        document.getElementById('cr-amount').value = '';
         document.getElementById('mod-cash_release')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
 
@@ -2799,9 +2603,8 @@ const app = {
         const data = await this.request('delete_cash_release', { id });
         if (data && data.status === 'success') {
             this.showToast('Cash release deleted.');
-            const projectId = document.getElementById('cr-project').value;
             await this.loadCashReleaseRecords();
-            if (projectId) await this.loadCashReleaseSummary(projectId);
+            await this.loadCashReleaseCategoryTotals();
             this.loadDashboard();
         } else {
             this.showToast(data?.message || 'Delete failed.', 'error');
@@ -2861,6 +2664,8 @@ const app = {
                     <td style="font-weight:700;">${fmtCost}</td>
                     <td><b style="color:var(--danger);">${escapeHTML(n.due_date) || 'N/A'}</b></td>
                     <td>${escapeHTML(n.acceptance_date) || 'N/A'}</td>
+                    <td>${escapeHTML(n.completion_date_project || 'N/A')}</td>
+                    <td style="font-weight:700;">${n.total_amount_project ? '₱' + parseFloat(n.total_amount_project).toLocaleString('en-US') : 'N/A'}</td>
                     <td>
                         ${n.file_path
                         ? `<span style="cursor:pointer; color:var(--primary-hover); text-decoration:underline;" onclick="app.viewAttachedFile('${safe(n.file_path)}')">View PDF</span>`
@@ -2873,7 +2678,7 @@ const app = {
         } else {
             tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="empty-state-wrapper">
+                <td colspan="9" class="empty-state-wrapper">
                     <i class="fa-solid fa-file-pdf"></i>
                     <p>No NTP records found.</p>
                 </td>
@@ -2901,11 +2706,11 @@ const app = {
         }
     },
     uploadGlobalNTP: async function () {
-        const project_id = document.getElementById('g-ntp-project').value; const ticket = document.getElementById('g-ntp-ticket').value; const date = document.getElementById('g-ntp-date').value; const award_cost = document.getElementById('g-ntp-cost').value; const due_date = document.getElementById('g-ntp-due').value; const accept_date = document.getElementById('g-ntp-accept').value; const fileInput = document.getElementById('g-ntp-file');
+        const project_id = document.getElementById('g-ntp-project').value; const ticket = document.getElementById('g-ntp-ticket').value; const date = document.getElementById('g-ntp-date').value; const award_cost = document.getElementById('g-ntp-cost').value; const due_date = document.getElementById('g-ntp-due').value; const accept_date = document.getElementById('g-ntp-accept').value; const completion_date = document.getElementById('g-ntp-completion').value; const work_description = document.getElementById('g-ntp-work-desc').value; const project_description = document.getElementById('g-ntp-project-desc').value; const total_amount = document.getElementById('g-ntp-total-amount').value || 0; const fileInput = document.getElementById('g-ntp-file');
         if (!project_id || !date || !due_date || fileInput.files.length === 0) { this.showToast('Project, NTP Date, Due Date, and File are required!', 'error'); return; }
-        const fd = new FormData(); fd.append('project_id', project_id); fd.append('ticket', ticket); fd.append('date', date); fd.append('award_cost', award_cost); fd.append('due_date', due_date); fd.append('accept_date', accept_date); fd.append('file', fileInput.files[0]);
+        const fd = new FormData(); fd.append('project_id', project_id); fd.append('ticket', ticket); fd.append('date', date); fd.append('award_cost', award_cost); fd.append('due_date', due_date); fd.append('accept_date', accept_date); fd.append('completion_date', completion_date); fd.append('work_description', work_description); fd.append('project_description', project_description); fd.append('total_amount', total_amount); fd.append('file', fileInput.files[0]);
         const res = await this.request('upload_ntp_file', fd, true);
-        if (res.status === 'success') { document.getElementById('g-ntp-ticket').value = ''; document.getElementById('g-ntp-cost').value = ''; document.getElementById('g-ntp-accept').value = ''; document.getElementById('g-ntp-file').value = ''; await this.loadGlobalNTP(); this.loadDashboard(); this.showToast("NTP Successfully uploaded!"); } else { this.showToast(res.message, 'error'); }
+        if (res.status === 'success') { document.getElementById('g-ntp-ticket').value = ''; document.getElementById('g-ntp-cost').value = ''; document.getElementById('g-ntp-accept').value = ''; document.getElementById('g-ntp-completion').value = ''; document.getElementById('g-ntp-work-desc').value = ''; document.getElementById('g-ntp-project-desc').value = ''; document.getElementById('g-ntp-total-amount').value = ''; document.getElementById('g-ntp-file').value = ''; await this.loadGlobalNTP(); this.loadDashboard(); this.showToast("NTP Successfully uploaded!"); } else { this.showToast(res.message, 'error'); }
     },
 
     openBulkAdd: function (module = 'projects') {
@@ -2930,8 +2735,8 @@ const app = {
 
         const templates = {
             projects: {
-                format: 'Project Name, Block, Lot, Client, Location, Description, Foreman, Foreman 2 optional, Start Date YYYY-MM-DD',
-                example: 'Project A, Block 1, Lot 5, Client One, Laguna, Two storey house, Juan Foreman, Pedro Foreman, 2026-06-01'
+                format: 'Project Name, Block, Lot, Client, Location, Description, Foreman, Foreman 2 optional, Start Date YYYY-MM-DD, Completion Date optional, Work Description optional, Project Description optional, Total Amount optional',
+                example: 'Project A, Block 1, Lot 5, Client One, Laguna, Two storey house, Juan Foreman, Pedro Foreman, 2026-06-01, 2026-12-01, CHB Laying & Finish, "Two Storey Residential Unit", 1500000'
             },
             suppliers: {
                 format: 'Supplier Name, Materials, Contact, Email optional',
@@ -2954,12 +2759,12 @@ const app = {
                 example: '2026-06-01, Juan Dela Cruz, CHB Laying, 1500, 500'
             },
             cash_release: {
-                format: 'Project ID, Release Date YYYY-MM-DD, Description, Release Amount, Released To, Category, Status, Reference No, Capital Amount, Payment Method, Remarks',
-                example: '1, 2026-06-01, Payment for materials, 5600, Juan Dela Cruz, Materials, Released, CR-001, 100000, Bank Transfer, First batch'
+                format: 'Date YYYY-MM-DD, Category (Materials/Labor/Other Expenses), Receiver Name, Description, Amount',
+                example: '2026-06-01, Materials, Juan Dela Cruz, Payment for materials, 5600'
             },
             ntp: {
-                format: 'Project Name or ID, NTP Ticket, Date Received YYYY-MM-DD, Award Cost, Due Date YYYY-MM-DD, Acceptance Date optional',
-                example: 'Project A, NTP-001, 2026-06-01, 50000, 2026-06-10, 2026-06-02'
+                format: 'Project Name or ID, NTP Ticket, Date Received YYYY-MM-DD, Award Cost, Due Date YYYY-MM-DD, Acceptance Date optional, Completion Date optional, Work Description optional, Project Description optional, Total Amount optional',
+                example: 'Project A, NTP-001, 2026-06-01, 50000, 2026-06-10, 2026-06-02, 2026-12-01, "CHB Laying & Finishing", "Two Storey Unit", 1500000'
             }
         };
 
@@ -3011,7 +2816,7 @@ const app = {
             manpower: ['name', 'skills', 'position', 'salary', 'project'],
             award_costs: ['project', 'service_agreement_code', 'item', 'unit', 'start_date', 'completion_date', 'work_description', 'project_description', 'total_amount'],
             payroll: ['date', 'name', 'job_desc', 'award', 'advance'],
-            cash_release: ['project_id', 'release_date', 'release_description', 'release_amount', 'released_to', 'category', 'status', 'release_reference_no', 'capital_amount', 'payment_method', 'remarks'],
+            cash_release: ['date', 'category', 'name', 'description', 'amount'],
             ntp: ['project', 'ticket', 'date', 'award_cost', 'due_date', 'accept_date']
         };
 
@@ -3342,7 +3147,7 @@ app.loadBillingModule = async function () {
     document.getElementById('bp-submit-text').textContent = 'Add Record';
     document.getElementById('bp-cancel-btn').style.display = 'none';
     document.getElementById('bp-project').value = '';
-    document.getElementById('bp-award-cost').value = '';
+    document.getElementById('bp-award-cost').innerHTML = '<option value="">No Award Cost / Service Agreement</option>';
     document.getElementById('bp-date').value = '';
     document.getElementById('bp-ref-no').value = '';
     document.getElementById('bp-description').value = '';
@@ -3361,21 +3166,21 @@ app.populateBillingProjects = async function () {
     const sel = document.getElementById('bp-project');
     const val = sel.value;
     sel.innerHTML = '<option value="">Select Project Site / NTP</option>';
-    if (data && data.status === 'success' && data.data) {
-        data.data.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = `${p.project_name} (${p.project_code})`;
-            sel.appendChild(opt);
-        });
-    }
+    const list = (data && data.status === 'success' && data.data) ? data.data : (Array.isArray(data) ? data : []);
+    list.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        const loc = p.location ? ` - ${p.location}` : '';
+        const blk = p.block_no ? ` (Blk ${p.block_no}${p.lot_no ? ` Lot ${p.lot_no}` : ''})` : '';
+        opt.textContent = `${p.name}${blk}${loc}`;
+        sel.appendChild(opt);
+    });
     sel.value = val;
-    if (!val && sel.options.length > 1) sel.selectedIndex = 0;
 };
 
 app.loadBillingAwardCosts = async function (projectId) {
     const sel = document.getElementById('bp-award-cost');
-    sel.innerHTML = '<option value="">No Award Cost reference</option>';
+    sel.innerHTML = '<option value="">Service Agreement / Award Cost (Optional)</option>';
     if (!projectId) return;
     const data = await this.request('get_award_costs_for_billing', { project_id: projectId });
     if (data && data.status === 'success' && data.data) {
@@ -3392,21 +3197,25 @@ app.loadBillingSummary = async function (projectId) {
     const data = await this.request('get_billing_summary', { project_id: projectId });
     if (data && data.status === 'success' && data.data) {
         const s = data.data;
-        document.getElementById('bp-sum-award').textContent = `₱${parseFloat(s.award_total_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+        const hasAward = parseFloat(s.award_total_amount || 0) > 0;
+        document.getElementById('bp-sum-award').textContent = hasAward
+            ? `₱${parseFloat(s.award_total_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+            : 'N/A';
         document.getElementById('bp-sum-billed').textContent = `₱${parseFloat(s.total_billed || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
         document.getElementById('bp-sum-collected').textContent = `₱${parseFloat(s.total_collected || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-        const balance = (s.award_total_amount || 0) - (s.total_collected || 0);
-        document.getElementById('bp-sum-balance').textContent = `₱${Math.max(0, balance).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-        const pct = s.award_total_amount > 0 ? Math.min(100, ((s.total_collected || 0) / s.award_total_amount) * 100) : 0;
+        document.getElementById('bp-sum-balance').textContent = hasAward
+            ? `₱${Math.max(0, s.remaining_balance || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+            : 'N/A';
+        const pct = hasAward ? Math.min(100, ((s.total_collected || 0) / s.award_total_amount) * 100) : 0;
         document.getElementById('bp-progress-bar').style.width = `${pct}%`;
-        document.getElementById('bp-sum-percent').textContent = `${pct.toFixed(1)}%`;
+        document.getElementById('bp-sum-percent').textContent = hasAward ? `${pct.toFixed(1)}%` : 'N/A';
     } else {
-        document.getElementById('bp-sum-award').textContent = '₱0.00';
+        document.getElementById('bp-sum-award').textContent = 'N/A';
         document.getElementById('bp-sum-billed').textContent = '₱0.00';
         document.getElementById('bp-sum-collected').textContent = '₱0.00';
-        document.getElementById('bp-sum-balance').textContent = '₱0.00';
+        document.getElementById('bp-sum-balance').textContent = 'N/A';
         document.getElementById('bp-progress-bar').style.width = '0%';
-        document.getElementById('bp-sum-percent').textContent = '0%';
+        document.getElementById('bp-sum-percent').textContent = 'N/A';
     }
 };
 
