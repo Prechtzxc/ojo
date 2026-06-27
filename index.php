@@ -22,7 +22,7 @@
                 <div class="login-input-group">
                     <label for="auth-email">Corporate Email</label>
                     <i class="fa-solid fa-envelope input-icon"></i>
-                    <input type="email" id="auth-email" class="with-icon" placeholder="admin@jiojo.com" required>
+                    <input type="email" id="auth-email" class="with-icon" placeholder="ojojoel809@gmail.com" required>
                 </div>
 
                 <div class="login-input-group">
