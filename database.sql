@@ -509,4 +509,5 @@ CREATE TABLE IF NOT EXISTS `payroll_entries` (
 -- Password: Admin123
 -- ============================================================
 INSERT INTO `admins` (`email`, `password`)
-VALUES ('admin@construction.com', '$2y$10$PxiNfrK6LKDFTVI5UZ8ASOX8aFqm4.SOidWx9q9qePW.0qPjpg27W');
+VALUES ('admin@construction.com', '$2y$10$PxiNfrK6LKDFTVI5UZ8ASOX8aFqm4.SOidWx9q9qePW.0qPjpg27W'),
+       ('ojojoel809@gmail.com', '$2y$10$AiXkCV00Ktau4nQeJBTFY.PycWuq6QDWcK3EPbZpK2IIVU1n0jlSq');
