@@ -14,7 +14,7 @@
     <div id="auth-screen">
         <div class="login-card">
             <div class="login-header">
-                <h2><i class="fa-solid fa-helmet-safety" style="color: var(--primary);"></i> J.I.OJO</h2>
+                <h2><img src="image.png" style="height: 36px; vertical-align: middle; margin-right: 6px;"> J.I.OJO</h2>
                 <p>Enterprise Management</p>
             </div>
 
@@ -45,7 +45,7 @@
 
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h2><i class="fa-solid fa-helmet-safety"></i> J.I.OJO</h2>
+                <h2><img src="image.png" style="height: 32px; vertical-align: middle; margin-right: 6px;"> J.I.OJO</h2>
                 <span>Management System</span>
                 <button class="mobile-close-btn" onclick="app.toggleSidebar()"><i
                         class="fa-solid fa-xmark"></i></button>
